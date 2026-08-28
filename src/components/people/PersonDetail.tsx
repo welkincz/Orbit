@@ -28,7 +28,11 @@ function titleCase(value?: string): string | undefined {
   return value ? `${value[0].toUpperCase()}${value.slice(1)}` : undefined;
 }
 
-export function PersonDetail({ person, people, onSelectPerson, onClose }: PersonDetailProps) {
+export function PersonDetail(props: PersonDetailProps) {
+  return <PersonDetailContent key={props.person.id} {...props} />;
+}
+
+function PersonDetailContent({ person, people, onSelectPerson, onClose }: PersonDetailProps) {
   const [copyStatus, setCopyStatus] = useState("");
   const introducer = person.introducedBy ? people.find(({ id }) => id === person.introducedBy) : undefined;
   const roleAndTeam = [person.role, person.team].filter(Boolean).join(" · ");

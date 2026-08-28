@@ -28,6 +28,8 @@ const markdownComponents = {
   ),
 };
 
+const allowedElements = ["p", "ul", "ol", "li", "strong", "em", "code", "a"];
+
 export function MarkdownSection({ title, markdown }: MarkdownSectionProps) {
   if (!markdown.trim()) return null;
 
@@ -36,7 +38,13 @@ export function MarkdownSection({ title, markdown }: MarkdownSectionProps) {
       <h3 className="text-sm font-semibold text-slate-950" id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}>
         {title}
       </h3>
-      <ReactMarkdown components={markdownComponents}>{markdown}</ReactMarkdown>
+      <ReactMarkdown
+        allowedElements={allowedElements}
+        components={markdownComponents}
+        unwrapDisallowed
+      >
+        {markdown}
+      </ReactMarkdown>
     </section>
   );
 }
