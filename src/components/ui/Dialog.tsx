@@ -6,6 +6,7 @@ import { forwardRef } from "react";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTitle = DialogPrimitive.Title;
+export const DialogTrigger = DialogPrimitive.Trigger;
 
 export const DialogContent = forwardRef<
   ElementRef<typeof DialogPrimitive.Content>,

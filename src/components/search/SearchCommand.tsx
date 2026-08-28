@@ -3,7 +3,7 @@
 import { Command } from "cmdk";
 import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/Dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/Dialog";
 import { normalizeSearchText, searchPeople } from "@/lib/search";
 import type { Person } from "@/types/person";
 
@@ -21,18 +21,77 @@ function subtitleFor(person: Person): string {
   return parts.join(" · ");
 }
 
-function HighlightedText({ value, query }: { value: string; query: string }) {
+interface SourceOffset {
+  start: number;
+  end: number;
+}
+
+function normalizedTextWithOffsets(value: string): { text: string; offsets: SourceOffset[] } {
+  let text = "";
+  const offsets: SourceOffset[] = [];
+  let whitespaceOffset: SourceOffset | null = null;
+
+  for (let sourceStart = 0; sourceStart < value.length;) {
+    const codePoint = value.codePointAt(sourceStart);
+    if (codePoint === undefined) break;
+
+    const sourceEnd = sourceStart + String.fromCodePoint(codePoint).length;
+    const normalizedChunk = value
+      .slice(sourceStart, sourceEnd)
+      .normalize("NFKD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase();
+
+    for (const character of normalizedChunk) {
+      if (/\s/u.test(character)) {
+        whitespaceOffset = whitespaceOffset
+          ? { start: whitespaceOffset.start, end: sourceEnd }
+          : { start: sourceStart, end: sourceEnd };
+        continue;
+      }
+
+      if (whitespaceOffset && text.length > 0) {
+        text += " ";
+        offsets.push(whitespaceOffset);
+        whitespaceOffset = null;
+      }
+
+      text += character;
+      for (let index = 0; index < character.length; index += 1) {
+        offsets.push({ start: sourceStart, end: sourceEnd });
+      }
+    }
+
+    sourceStart = sourceEnd;
+  }
+
+  return { text, offsets };
+}
+
+function getNormalizedMatchRange(value: string, query: string): SourceOffset | null {
   const normalizedQuery = normalizeSearchText(query);
-  const matchStart = value.toLocaleLowerCase().indexOf(normalizedQuery);
+  if (!normalizedQuery) return null;
 
-  if (!normalizedQuery || matchStart < 0) return value;
+  const { text, offsets } = normalizedTextWithOffsets(value);
+  const normalizedMatchStart = text.indexOf(normalizedQuery);
+  if (normalizedMatchStart < 0) return null;
 
-  const matchEnd = matchStart + query.trim().length;
+  const normalizedMatchEnd = normalizedMatchStart + normalizedQuery.length - 1;
+  return {
+    start: offsets[normalizedMatchStart].start,
+    end: offsets[normalizedMatchEnd].end,
+  };
+}
+
+function HighlightedText({ value, query }: { value: string; query: string }) {
+  const match = getNormalizedMatchRange(value, query);
+
+  if (!match) return value;
   return (
     <>
-      {value.slice(0, matchStart)}
-      <mark className="rounded-sm bg-amber-100 px-0.5 text-inherit">{value.slice(matchStart, matchEnd)}</mark>
-      {value.slice(matchEnd)}
+      {value.slice(0, match.start)}
+      <mark className="rounded-sm bg-amber-100 px-0.5 text-inherit">{value.slice(match.start, match.end)}</mark>
+      {value.slice(match.end)}
     </>
   );
 }
@@ -69,15 +128,16 @@ export function SearchCommand({ people, onSelect }: SearchCommandProps) {
 
   return (
     <Dialog onOpenChange={handleOpenChange} open={open}>
-      <button
-        className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-        onClick={() => setOpen(true)}
-        type="button"
-      >
-        <Search aria-hidden="true" className="size-4" />
-        <span>Search</span>
-        <kbd className="hidden rounded border border-slate-200 px-1.5 py-0.5 text-xs text-slate-500 sm:inline">⌘K</kbd>
-      </button>
+      <DialogTrigger asChild>
+        <button
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          type="button"
+        >
+          <Search aria-hidden="true" className="size-4" />
+          <span>Search</span>
+          <kbd className="hidden rounded border border-slate-200 px-1.5 py-0.5 text-xs text-slate-500 sm:inline">⌘K</kbd>
+        </button>
+      </DialogTrigger>
       <DialogContent
         aria-describedby={undefined}
         onOpenAutoFocus={(event) => {
