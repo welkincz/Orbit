@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { NetworkGraph } from "@/components/network/NetworkGraph";
 import { RefreshPeopleButton } from "@/components/network/RefreshPeopleButton";
 import { PersonDetail } from "@/components/people/PersonDetail";
 import { RelationshipSidebar } from "@/components/people/RelationshipSidebar";
@@ -14,7 +15,7 @@ interface NetworkWorkspaceProps {
 export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspaceProps) {
   const loadedPeopleCount = initialDataset.people.length;
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selectPerson = useCallback((id: string) => setSelectedId(id), []);
+  const selectPerson = useCallback((id: string | null) => setSelectedId(id), []);
   const selectedPerson = useMemo(
     () => initialDataset.people.find((person) => person.id === selectedId),
     [initialDataset.people, selectedId],
@@ -39,12 +40,11 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
           onSelect={selectPerson}
           selectedId={selectedId}
         />
-        <section
-          aria-label="Relationship graph"
-          className="min-h-96 flex-1 rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-600"
-        >
-          Relationship graph for {currentDate} will appear here.
-        </section>
+        <NetworkGraph
+          dataset={initialDataset}
+          onSelect={selectPerson}
+          selectedId={selectedId}
+        />
         {selectedPerson && (
           <PersonDetail
             onClose={() => setSelectedId(null)}
