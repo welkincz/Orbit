@@ -40,7 +40,12 @@ export function getReconnectCandidates(
   currentDate: ISODate,
 ): ReconnectCandidate[] {
   return people
-    .filter((person) => person.type === "person" && person.effectiveLastContact && person.desiredCadenceDays)
+    .filter((person) => (
+      person.type === "person"
+      && person.effectiveLastContact
+      && person.desiredCadenceDays !== undefined
+      && person.desiredCadenceDays > 0
+    ))
     .map((person) => ({
       person,
       overdueDays: calendarDaysBetween(person.effectiveLastContact!, currentDate) - person.desiredCadenceDays!,

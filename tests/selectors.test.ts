@@ -29,9 +29,11 @@ describe("relationship selectors", () => {
 
   it("uses an inclusive 30-day recent boundary", () => {
     expect(ids(getRecentContacts([
+      makePerson({ id: "today", effectiveLastContact: "2026-08-27" }),
       makePerson({ id: "day-30", effectiveLastContact: "2026-07-28" }),
       makePerson({ id: "day-31", effectiveLastContact: "2026-07-27" }),
-    ], "2026-08-27"))).toEqual(["day-30"]);
+      makePerson({ id: "future", effectiveLastContact: "2026-08-28" }),
+    ], "2026-08-27"))).toEqual(["today", "day-30"]);
   });
 
   it("excludes a never-met target from reconnect", () => {
@@ -49,46 +51,68 @@ describe("relationship selectors", () => {
     const people = [
       makePerson({ id: "bruno", name: "Bruno", innerCircle: true, relationshipStrength: 4, effectiveLastContact: "2026-08-26" }),
       makePerson({ id: "amy", name: "Amy", innerCircle: true, relationshipStrength: 5, effectiveLastContact: "2026-08-01" }),
+      makePerson({ id: "dana", name: "Dana", innerCircle: true, relationshipStrength: 4, effectiveLastContact: "2026-08-20" }),
       makePerson({ id: "cora", name: "Cora", innerCircle: true, relationshipStrength: 4, effectiveLastContact: "2026-08-20" }),
       makePerson({ id: "self", name: "Self", type: "self", innerCircle: true, relationshipStrength: undefined, strategicRelevance: undefined }),
     ];
 
-    expect(ids(getInnerCircle(people))).toEqual(["amy", "bruno", "cora"]);
+    expect(ids(getInnerCircle(people))).toEqual(["amy", "bruno", "cora", "dana"]);
   });
 
-  it("sorts recent contacts by newest contact date", () => {
+  it("sorts recent contacts by newest contact date, then name", () => {
     const people = [
       makePerson({ id: "old", name: "Old", effectiveLastContact: "2026-08-01" }),
-      makePerson({ id: "new", name: "New", effectiveLastContact: "2026-08-26" }),
+      makePerson({ id: "zane", name: "Zane", effectiveLastContact: "2026-08-26" }),
+      makePerson({ id: "amy", name: "Amy", effectiveLastContact: "2026-08-26" }),
       makePerson({ id: "middle", name: "Middle", effectiveLastContact: "2026-08-20" }),
       makePerson({ id: "self", name: "Self", type: "self", effectiveLastContact: "2026-08-27", relationshipStrength: undefined, strategicRelevance: undefined }),
     ];
 
-    expect(ids(getRecentContacts(people, "2026-08-27"))).toEqual(["new", "middle", "old"]);
+    expect(ids(getRecentContacts(people, "2026-08-27"))).toEqual(["amy", "zane", "middle", "old"]);
   });
 
-  it("sorts reconnect candidates by overdue days", () => {
+  it("excludes reconnect candidates at cadence equality and with invalid cadences", () => {
+    const people = [
+      makePerson({ id: "at-cadence", effectiveLastContact: "2026-08-17", desiredCadenceDays: 10 }),
+      makePerson({ id: "zero-cadence", effectiveLastContact: "2026-08-01", desiredCadenceDays: 0 }),
+      makePerson({ id: "negative-cadence", effectiveLastContact: "2026-08-01", desiredCadenceDays: -5 }),
+      makePerson({ id: "positive-cadence", effectiveLastContact: "2026-08-17", desiredCadenceDays: 9 }),
+    ];
+
+    expect(ids(getReconnectCandidates(people, "2026-08-27").map(({ person }) => person))).toEqual([
+      "positive-cadence",
+    ]);
+  });
+
+  it("sorts reconnect candidates by overdue days, then strength, then name", () => {
     const people = [
       makePerson({ id: "less-overdue", effectiveLastContact: "2026-08-10", desiredCadenceDays: 10 }),
       makePerson({ id: "most-overdue", effectiveLastContact: "2026-08-01", desiredCadenceDays: 5 }),
+      makePerson({ id: "zane", name: "Zane", effectiveLastContact: "2026-08-12", desiredCadenceDays: 5, relationshipStrength: 4 }),
+      makePerson({ id: "amy", name: "Amy", effectiveLastContact: "2026-08-12", desiredCadenceDays: 5, relationshipStrength: 4 }),
+      makePerson({ id: "less-strong", name: "Bea", effectiveLastContact: "2026-08-12", desiredCadenceDays: 5, relationshipStrength: 2 }),
       makePerson({ id: "not-overdue", effectiveLastContact: "2026-08-25", desiredCadenceDays: 2 }),
     ];
 
     expect(ids(getReconnectCandidates(people, "2026-08-27").map(({ person }) => person))).toEqual([
       "most-overdue",
+      "amy",
+      "zane",
+      "less-strong",
       "less-overdue",
     ]);
   });
 
-  it("sorts targets by relevance before relationship strength", () => {
+  it("sorts targets by relevance, then relationship strength, then name", () => {
     const people = [
       makePerson({ id: "medium-strong", target: true, strategicRelevance: "medium", relationshipStrength: 5 }),
       makePerson({ id: "high-less-strong", target: true, strategicRelevance: "high", relationshipStrength: 2 }),
-      makePerson({ id: "high-strong", target: true, strategicRelevance: "high", relationshipStrength: 4 }),
+      makePerson({ id: "high-zane", name: "Zane", target: true, strategicRelevance: "high", relationshipStrength: 4 }),
+      makePerson({ id: "high-amy", name: "Amy", target: true, strategicRelevance: "high", relationshipStrength: 4 }),
       makePerson({ id: "low", target: true, strategicRelevance: "low", relationshipStrength: 5 }),
       makePerson({ id: "self", type: "self", target: true, relationshipStrength: undefined, strategicRelevance: undefined }),
     ];
 
-    expect(ids(getTargets(people))).toEqual(["high-strong", "high-less-strong", "medium-strong", "low"]);
+    expect(ids(getTargets(people))).toEqual(["high-amy", "high-zane", "high-less-strong", "medium-strong", "low"]);
   });
 });
