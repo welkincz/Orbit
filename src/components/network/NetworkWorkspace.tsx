@@ -57,7 +57,7 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
               animate={{
                 opacity: 1,
                 x: 0,
-                transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+                transition: { duration: reduceMotion ? 0.001 : 0.22, ease: [0.22, 1, 0.36, 1] },
               }}
               className="orbit-detail-motion"
               exit={{

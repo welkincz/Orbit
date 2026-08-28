@@ -653,7 +653,7 @@ input,
 }
 
 .dialog-content[data-state="closed"] {
-  animation: dialog-content-out 160ms var(--ease-out) both;
+  animation: dialog-content-out 180ms var(--ease-out) both;
 }
 
 @keyframes dialog-overlay-in {
