@@ -4,7 +4,11 @@ import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 
-export function RefreshPeopleButton() {
+interface RefreshPeopleButtonProps {
+  label?: string;
+}
+
+export function RefreshPeopleButton({ label = "Refresh" }: RefreshPeopleButtonProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -19,7 +23,7 @@ export function RefreshPeopleButton() {
         aria-hidden="true"
         className={`size-4 transition-transform duration-[120ms]${isPending ? " rotate-180" : ""}`}
       />
-      Refresh
+      {label}
     </button>
   );
 }

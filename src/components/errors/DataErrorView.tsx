@@ -27,7 +27,7 @@ export function DataErrorView({ error }: DataErrorViewProps) {
         </ul>
 
         <div className="mt-6">
-          <RefreshPeopleButton />
+          <RefreshPeopleButton label="Retry" />
         </div>
       </section>
     </main>
