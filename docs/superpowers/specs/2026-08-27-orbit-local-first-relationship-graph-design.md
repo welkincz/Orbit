@@ -1,7 +1,7 @@
 # Orbit Local-First Professional Relationship Graph — Design
 
 Date: 2026-08-27
-Status: Approved in chat; awaiting written-spec review
+Status: Approved for implementation
 
 ## 1. Product intent
 
