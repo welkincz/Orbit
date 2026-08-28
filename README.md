@@ -8,7 +8,7 @@ The four overlapping views answer distinct questions: who is in the Inner Circle
 
 ## Architecture
 
-This is a TypeScript, React, and Next.js App Router application with Tailwind CSS. The root page is dynamically rendered and reads `data/people/*.md` on every request. The server separates frontmatter, parses the known Markdown sections, validates the full collection, derives selectors and relationship edges, then sends a serializable dataset to the client workspace.
+This is a TypeScript, React, and Next.js App Router application with Tailwind CSS. The root page is dynamically rendered and reads `data/people/*.md` on every request. The server separates frontmatter, parses the known Markdown sections, validates the full collection, and passes a serializable `PeopleDataset` to the client workspace. The client derives the sidebar selectors and relationship edges/graph model from that dataset.
 
 The graph is a client-only canvas; the sidebar, Cmd/Ctrl+K command palette, and detail panel are accessible DOM alternatives. There is no file watcher or polling loop. After changing Markdown in VS Code, use the in-app Refresh control or reload the browser; either causes the local server to reread the repository files without a server restart. A malformed record produces a file-specific error screen instead of showing stale data.
 
