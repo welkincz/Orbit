@@ -59,6 +59,40 @@ describe("Markdown people data", () => {
     expect(person.sections.whyTheyMatter).toContain("candid platform leadership advice");
   });
 
+  it("keeps an immediately following Follow up out of an empty interaction body", () => {
+    const markdown = `## Interactions
+
+### 2026-08-18 — Check-in
+
+### Follow up
+
+- Send the article
+`;
+
+    const extracted = extractMarkdownSections(markdown);
+
+    expect(extracted.interactions).toEqual([
+      { date: "2026-08-18", kind: "Check-in", markdown: "" },
+    ]);
+    expect(extracted.interactions[0].markdown).not.toContain("Send the article");
+    expect(extracted.sections.followUp).toBe("- Send the article");
+    expect(extracted.sections.followUp.match(/Send the article/g)).toHaveLength(1);
+  });
+
+  it("keeps Why they matter, Context, and Interactions within exact H2 boundaries", () => {
+    const person = parsePersonMarkdown(validSource, options);
+
+    expect(person.sections).toEqual({
+      whyTheyMatter: "Maya gives candid platform leadership advice.",
+      context: "Met through a cross-team architecture forum.",
+      followUp: "- Send the platform RFC article",
+    });
+    expect(person.interactions.map(({ markdown }) => markdown)).toEqual([
+      "Discussed:\n\n- Platform ownership\n- Hiring signals",
+      "Discussed operating models.",
+    ]);
+  });
+
   it("uses frontmatter last_contact and warns when an interaction is newer", () => {
     const sourceWithNewerInteraction = validSource
       .replace("### 2026-08-18 — Coffee chat", "### 2026-08-20 — Coffee chat");
@@ -146,6 +180,23 @@ Second.
       expect(error).toBeInstanceOf(PeopleDataError);
       expect(error).toMatchObject({ sourceRelativePath: options.relativePath });
       expect((error as PeopleDataError).issues).toContainEqual(expect.stringMatching(/last_contact.*calendar date/i));
+    }
+  });
+
+  it.each([
+    "last_contact: 2026-02-30   ",
+    "last_contact   :   2026-02-30",
+    "last_contact : 2026-02-30   # impossible date",
+  ])("rejects impossible raw last_contact syntax before YAML coercion: %s", (lastContactLine) => {
+    const source = validSource.replace("last_contact: 2026-08-18", lastContactLine);
+
+    try {
+      parsePersonMarkdown(source, options);
+      throw new Error("Expected parsing to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PeopleDataError);
+      expect(error).toMatchObject({ sourceRelativePath: options.relativePath });
+      expect((error as PeopleDataError).issues).toContain("last_contact: must be a real calendar date");
     }
   });
 

@@ -17,6 +17,10 @@ import type {
 
 const INTERACTION_HEADING = /^(\d{4}-\d{2}-\d{2})\s+[—-]\s+(.+)$/;
 const FOLLOW_UP_HEADING = /^follow[ -]?up$/i;
+const RAW_LAST_CONTACT = /^[ \t]*last_contact[ \t]*:[ \t]*([^#\s]+)[ \t]*(?:#[^\r\n]*)?$/m;
+const GRAY_MATTER_YAML_ENGINE = (matter as typeof matter & {
+  engines: { yaml: { parse: (input: string) => object } };
+}).engines.yaml;
 
 interface ParsePersonOptions {
   absolutePath: string;
@@ -146,7 +150,7 @@ function withSourcePath(error: PeopleDataError, sourceRelativePath: string): Peo
 }
 
 function validateRawLastContact(frontmatter: string, sourceRelativePath: string): void {
-  const match = /^last_contact:\s*([^\s#]+)(?:\s+#.*)?$/m.exec(frontmatter);
+  const match = RAW_LAST_CONTACT.exec(frontmatter);
   if (!match) return;
 
   const rawValue = match[1].replace(/^(['"])(.*)\1$/, "$2");
@@ -161,15 +165,22 @@ function validateRawLastContact(frontmatter: string, sourceRelativePath: string)
 export function parsePersonMarkdown(source: string, options: ParsePersonOptions): Person {
   let parsed: matter.GrayMatterFile<string>;
   try {
-    parsed = matter(source);
-  } catch {
+    parsed = matter(source, {
+      engines: {
+        yaml: (frontmatter) => {
+          validateRawLastContact(frontmatter, options.relativePath);
+          return GRAY_MATTER_YAML_ENGINE.parse(frontmatter);
+        },
+      },
+    });
+  } catch (error) {
+    if (error instanceof PeopleDataError) throw error;
     throw new PeopleDataError("Invalid person frontmatter", {
       sourceRelativePath: options.relativePath,
       issues: ["frontmatter could not be parsed"],
     });
   }
 
-  validateRawLastContact(parsed.matter, options.relativePath);
   const frontmatter = normalizeFrontmatter(parsed.data, options.relativePath);
   let extracted: ExtractedMarkdownSections;
   try {
