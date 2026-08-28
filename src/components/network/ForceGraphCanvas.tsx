@@ -7,8 +7,17 @@ import ForceGraph2D, {
   type NodeObject,
 } from "react-force-graph-2d";
 import {
+  didPointerDrag,
+  getGraphPointerTarget,
+  isPrimaryPointerActivation,
+  type GraphPoint,
+  type ScreenGraphLink,
+  type ScreenGraphNode,
+} from "@/lib/graph-geometry";
+import {
   buildGraphModel,
   getConnectedIds,
+  getGraphLinkMetrics,
   type GraphLink,
   type GraphNode,
 } from "@/lib/graph-model";
@@ -69,6 +78,8 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
   const forcesConfiguredRef = useRef(false);
   const hasFittedRef = useRef(false);
   const pointerDownRef = useRef<TooltipCoordinates | null>(null);
+  const latestPointerRef = useRef<TooltipCoordinates | null>(null);
+  const labelWidthsRef = useRef(new Map<string, number>());
   const draggedRef = useRef(false);
   const [size, setSize] = useState<GraphSize>({ width: 0, height: 0 });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -106,12 +117,8 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
     charge?.strength?.(-170);
 
     const linkForce = graph.d3Force("link");
-    linkForce?.distance?.((link: GraphLink) => link.kind === "introduced_by"
-      ? 108
-      : 132 - (link.strength ?? 1) * 12);
-    linkForce?.strength?.((link: GraphLink) => link.kind === "introduced_by"
-      ? 0.2
-      : 0.22 + (link.strength ?? 1) * 0.08);
+    linkForce?.distance?.((link: GraphLink) => getGraphLinkMetrics(link).distance);
+    linkForce?.strength?.((link: GraphLink) => getGraphLinkMetrics(link).forceStrength);
     forcesConfiguredRef.current = true;
   }, [size.height, size.width]);
 
@@ -172,6 +179,7 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
 
     const fontSize = 11 / scale;
     context.font = `${node.isSelf ? 650 : 550} ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+    labelWidthsRef.current.set(node.personId, context.measureText(node.name).width * scale);
     context.fillStyle = "#0f172a";
     context.textAlign = "left";
     context.textBaseline = "middle";
@@ -186,17 +194,42 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
     graphRef.current?.zoomToFit(reduceMotion ? 0 : 380, 52);
   }, []);
 
-  const findNodeAt = useCallback((coordinates: TooltipCoordinates) => {
+  const getPointerTargetAt = useCallback((coordinates: TooltipCoordinates) => {
     const graph = graphRef.current;
-    if (!graph) return undefined;
+    if (!graph) return { kind: "background" } as const;
 
-    return graphData.nodes.find((node) => {
-      if (node.x === undefined || node.y === undefined) return false;
+    const nodes = graphData.nodes.flatMap((node): ScreenGraphNode[] => {
+      if (node.x === undefined || node.y === undefined) return [];
       const screen = graph.graph2ScreenCoords(node.x, node.y);
-      const hitRadius = Math.min(9, Math.max(5, node.strength)) + 7;
-      return Math.hypot(screen.x - coordinates.x, screen.y - coordinates.y) <= hitRadius;
+      return [{
+        personId: node.personId,
+        x: screen.x,
+        y: screen.y,
+        radius: Math.min(9, Math.max(5, node.strength)),
+        labelWidth: labelWidthsRef.current.get(node.personId) ?? node.name.length * 6.2,
+      }];
     });
-  }, [graphData.nodes]);
+    const nodesById = new Map(nodes.map((node) => [node.personId, node]));
+    const links = graphData.links.flatMap((link): ScreenGraphLink[] => {
+      const source = nodesById.get(endpointId(link.source) ?? "");
+      const target = nodesById.get(endpointId(link.target) ?? "");
+      if (!source || !target) return [];
+      return [{
+        id: link.id,
+        source: { x: source.x, y: source.y },
+        target: { x: target.x, y: target.y },
+        width: getGraphLinkMetrics(link).width,
+      }];
+    });
+
+    return getGraphPointerTarget(coordinates, nodes, links);
+  }, [graphData.links, graphData.nodes]);
+
+  const updateHoverAt = useCallback((coordinates: GraphPoint) => {
+    const target = getPointerTargetAt(coordinates);
+    setHoveredId(target.kind === "node" ? target.personId : null);
+    if (target.kind === "node") setTooltipCoordinates(coordinates);
+  }, [getPointerTargetAt]);
 
   const getPointerCoordinates = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
@@ -207,17 +240,22 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
   }, []);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary) return;
     const coordinates = getPointerCoordinates(event);
-    const node = findNodeAt(coordinates);
+    latestPointerRef.current = coordinates;
     const pointerDown = pointerDownRef.current;
-    if (pointerDown && Math.hypot(coordinates.x - pointerDown.x, coordinates.y - pointerDown.y) > 4) {
+    if (pointerDown && didPointerDrag(pointerDown, coordinates)) {
       draggedRef.current = true;
     }
-    setHoveredId(node?.personId ?? null);
-    if (node) setTooltipCoordinates(coordinates);
-  }, [findNodeAt, getPointerCoordinates]);
+    updateHoverAt(coordinates);
+  }, [getPointerCoordinates, updateHoverAt]);
 
   const handlePointerUp = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (!isPrimaryPointerActivation(event)) {
+      pointerDownRef.current = null;
+      draggedRef.current = false;
+      return;
+    }
     const coordinates = getPointerCoordinates(event);
     const pointerDown = pointerDownRef.current;
     pointerDownRef.current = null;
@@ -225,8 +263,19 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
       draggedRef.current = false;
       return;
     }
-    onSelect(findNodeAt(coordinates)?.personId ?? null);
-  }, [findNodeAt, getPointerCoordinates, onSelect]);
+    const target = getPointerTargetAt(coordinates);
+    if (target.kind === "node") onSelect(target.personId);
+    if (target.kind === "background") onSelect(null);
+  }, [getPointerCoordinates, getPointerTargetAt, onSelect]);
+
+  const handleZoom = useCallback(() => {
+    setHoveredId(null);
+  }, []);
+
+  const handleZoomEnd = useCallback(() => {
+    const latestPointer = latestPointerRef.current;
+    if (latestPointer) updateHoverAt(latestPointer);
+  }, [updateHoverAt]);
 
   const tooltipX = Math.min(
     Math.max(8, tooltipCoordinates.x + 14),
@@ -245,10 +294,13 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
       className="relative h-[min(68vh,44rem)] min-h-[28rem] w-full overflow-hidden"
       onPointerDownCapture={(event) => {
         draggedRef.current = false;
-        pointerDownRef.current = getPointerCoordinates(event);
+        pointerDownRef.current = isPrimaryPointerActivation(event)
+          ? getPointerCoordinates(event)
+          : null;
       }}
       onPointerLeave={() => {
         pointerDownRef.current = null;
+        latestPointerRef.current = null;
         setHoveredId(null);
       }}
       onPointerMoveCapture={handlePointerMove}
@@ -278,15 +330,14 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
           linkDirectionalArrowLength={(link: LinkObject<GraphNode, GraphLink>) => link.directed ? 6 : 0}
           linkDirectionalArrowRelPos={0.72}
           linkLineDash={(link: LinkObject<GraphNode, GraphLink>) => link.kind === "introduced_by" ? [5, 4] : null}
-          linkWidth={(link: LinkObject<GraphNode, GraphLink>) => {
-            const baseWidth = link.kind === "direct" ? 0.65 + (link.strength ?? 1) * 0.24 : 1.25;
-            return isLinkEmphasized(link) ? baseWidth : 0.55;
-          }}
+          linkWidth={(link: LinkObject<GraphNode, GraphLink>) => getGraphLinkMetrics(link).width}
           maxZoom={4.5}
           minZoom={0.35}
           nodeCanvasObject={paintNode}
           nodeLabel={() => ""}
           onEngineStop={handleEngineStop}
+          onZoom={handleZoom}
+          onZoomEnd={handleZoomEnd}
           ref={graphRef}
           width={size.width}
         />
@@ -294,7 +345,7 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
 
       {hoveredNode && (
         <div
-          className="pointer-events-none absolute left-0 top-0 z-10 w-60 rounded-md border border-slate-200 bg-white/95 px-3 py-2.5 text-xs shadow-lg shadow-slate-900/10 backdrop-blur-sm"
+          className="pointer-events-none absolute left-0 top-0 z-10 max-h-[calc(100%-1rem)] w-60 max-w-[calc(100%-1rem)] overflow-hidden rounded-md border border-slate-200 bg-white/95 px-3 py-2.5 text-xs shadow-lg shadow-slate-900/10 backdrop-blur-sm"
           role="tooltip"
           style={{ transform: `translate3d(${tooltipX}px, ${tooltipY}px, 0)` }}
         >

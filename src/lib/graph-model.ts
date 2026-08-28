@@ -30,6 +30,27 @@ export interface GraphModel {
   links: GraphLink[];
 }
 
+export interface GraphLinkMetrics {
+  distance: number;
+  forceStrength: number;
+  width: number;
+}
+
+const NEUTRAL_RELATIONSHIP_STRENGTH = 3;
+
+function roundToHundredth(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export function getGraphLinkMetrics(link: Pick<GraphLink, "strength">): GraphLinkMetrics {
+  const strength = link.strength ?? NEUTRAL_RELATIONSHIP_STRENGTH;
+  return {
+    distance: 132 - strength * 12,
+    forceStrength: roundToHundredth(0.22 + strength * 0.08),
+    width: roundToHundredth(0.65 + strength * 0.24),
+  };
+}
+
 export function buildGraphModel(dataset: PeopleDataset): GraphModel {
   const nodes = dataset.people
     .map((person): GraphNode => ({

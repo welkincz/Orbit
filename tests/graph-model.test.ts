@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildGraphModel,
   getConnectedIds,
+  getGraphLinkMetrics,
   type GraphLink,
   type GraphNode,
 } from "@/lib/graph-model";
@@ -66,8 +67,19 @@ describe("graph model", () => {
       id: expect.any(String),
       personId: expect.any(String),
     }));
-    expect(model.nodes[0]).not.toBe(datasetWithIntroductions.people[0]);
+    for (const graphNode of model.nodes) {
+      expect(graphNode).not.toBe(datasetWithIntroductions.people.find(({ id }) => id === graphNode.personId));
+    }
     expect(model.nodes.map(({ id }) => id)).toEqual(["self", "maya", "theo"]);
+
+    const mayaRecord = datasetWithIntroductions.people.find(({ id }) => id === "maya");
+    const mayaNode = model.nodes.find(({ id }) => id === "maya");
+    if (!mayaRecord || !mayaNode) throw new Error("fixture is missing Maya");
+    mayaNode.name = "Changed only in graph";
+    expect(mayaRecord.name).toBe("Maya Patel");
+
+    const secondModel = buildGraphModel(datasetWithIntroductions);
+    expect(secondModel.links[0]).not.toBe(model.links[0]);
   });
 
   it("marks self distinctly and maps contact strength without conflating relevance", () => {
@@ -125,5 +137,35 @@ describe("graph model", () => {
 
     expect(getConnectedIds(links, "maya")).toEqual(new Set(["self", "maya", "theo"]));
     expect(getConnectedIds(links, "absent")).toEqual(new Set(["absent"]));
+  });
+
+  it("derives every link metric from strength with a neutral missing-strength fallback", () => {
+    const introduced = link({ source: "maya", target: "theo", kind: "introduced_by", directed: true });
+    const neutralDirect = link({ source: "self", target: "maya", strength: 3 });
+
+    expect(getGraphLinkMetrics(introduced)).toEqual(getGraphLinkMetrics(neutralDirect));
+    expect(getGraphLinkMetrics(neutralDirect)).toEqual({
+      distance: 96,
+      forceStrength: 0.46,
+      width: 1.37,
+    });
+  });
+
+  it("does not let link kind change distance, force weight, or rendered width", () => {
+    const direct = link({ source: "self", target: "maya", strength: 5 });
+    const introduced = link({
+      source: "self",
+      target: "maya",
+      kind: "introduced_by",
+      directed: true,
+      strength: 5,
+    });
+
+    expect(getGraphLinkMetrics(introduced)).toEqual(getGraphLinkMetrics(direct));
+    expect(getGraphLinkMetrics(direct)).toEqual({
+      distance: 72,
+      forceStrength: 0.62,
+      width: 1.85,
+    });
   });
 });
