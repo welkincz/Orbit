@@ -51,6 +51,16 @@ describe("people data", () => {
       .toThrow(/relationship_strength.*strategic_relevance/i);
   });
 
+  it("rejects an impossible frontmatter calendar date with source diagnostics", () => {
+    expect(() => normalizeFrontmatter({
+      id: "alex",
+      name: "Alex",
+      relationship_strength: 3,
+      strategic_relevance: "high",
+      last_contact: "2026-02-30",
+    }, "people/alex.md")).toThrow(/last_contact.*calendar date/i);
+  });
+
   it("finds exactly one self without relying on its id", () => {
     const dataset = validatePeopleCollection([
       person({ id: "root-person", type: "self" }),

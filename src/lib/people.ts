@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isISODate } from "@/lib/dates";
 import type {
   ISODate,
   NormalizedFrontmatter,
@@ -29,6 +30,9 @@ const frontmatterSchema = z.object({
   introduced_by: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).optional(),
   tags: z.array(z.string().trim().min(1)).default([]),
 }).superRefine((value, context) => {
+  if (value.last_contact !== undefined && !isISODate(value.last_contact)) {
+    context.addIssue({ code: "custom", path: ["last_contact"], message: "must be a real calendar date" });
+  }
   if (value.type === "person" && value.relationship_strength === undefined) {
     context.addIssue({ code: "custom", path: ["relationship_strength"], message: "is required for a person" });
   }
