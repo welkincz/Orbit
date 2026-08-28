@@ -24,3 +24,37 @@
 | Screenshot file format | Initial browser outputs were JPEG bytes bearing `.png` names. | Resolved artifact-format finding | Low | Converted the three required files with `sips -s format png`; no product source changed. | `file` now reports PNG data at 1440×900, 1440×900, and 1280×800. |
 
 No product source or test changes were warranted by the completed pass-one findings.
+
+## Pass 2 — production reinspection and Markdown recovery
+
+- Date: 2026-08-28
+- Browser: Codex In-app Browser
+- Commit inspected: `ba420f765321900eb43a527123be1d326081be22` (`fix: complete first Orbit visual QA pass`)
+- Runtime: a freshly completed `npm run build`, followed by the production server at `http://127.0.0.1:3111` (`npm run start -- --port 3111`). A direct HTTP request returned `200` and 28,258 bytes before browser inspection.
+- Screenshots: `screenshots/pass-2-default-1440.png` (1440×900), `screenshots/pass-2-selected-1440.png` (1440×900), and `screenshots/pass-2-search-1280.png` (1280×800). The browser screenshot API again supplied JPEG bytes with `.png` filenames; all three were converted and verified as actual PNG files with `file` and `sips`.
+
+| Check | Evidence | Finding | Severity | Change | Recheck |
+| --- | --- | --- | --- | --- | --- |
+| 1440×900 default graph, labels, and first scan | Fresh default capture shows all 12 people in the map, explicit central-person anchoring, readable labels, and a stable two-column relationship rail; `pass-2-default-1440.png`. | Pass | — | None | Direct visual inspection passed. |
+| Maya and Priya selected states | Maya's detail panel synchronized with the active rail entry (`aria-current="true"`), including relationship, relevance, date, Markdown sections, and the selected edge emphasis; Priya's button then opened `Priya Desai details`. `pass-2-selected-1440.png` records Maya. | Pass | — | None | Direct browser state checks passed. |
+| Reconnect scanning | Reconnect presents four compact people rows with explicit, right-aligned overdue values (`135d`, `120d`, `28d`, `20d`), so the needed next action is readable without opening a panel. | Pass | — | None | Direct visual and DOM inspection passed. |
+| Introduced-by edges and selection | Theo's panel visibly states `Introduced by` with a `Maya Patel` button. Activating it opened Maya's panel; after close, the detail region count was zero, and Priya reopened normally. Dashed directional edges are also visible in both graph captures. | Pass | — | None | Direct browser interactions passed. |
+| Command search and keyboard lifecycle | Cmd+K focused the combobox; `zzzz-unmatched` visibly produced `No people found.`; `Theo`, ArrowDown, Enter selected Theo; Escape removed the visible dialog and restored focus to the Search control. | Pass | — | None | Direct keyboard/DOM inspection passed. |
+| Keyboard focus treatment | The command-palette lifecycle above was directly keyboard-verified. Visible focus styling remains defined through `:focus-visible`; the in-app browser's focus injector again did not provide a reliable sequential-Tab traversal of sidebar controls, so that narrower traversal remains an automation limitation rather than an observed application defect. | Limitation only; no app failure evidenced | Low | None | Source rule and direct command-keyboard evidence retained. |
+| Graph pan, zoom, and drift | A pointer drag in the graph region followed by wheel zoom completed without page overflow. Two full viewport captures 1.1 s apart after the gesture had identical SHA-256 prefixes (`6dc1d4519ba6e3d0`), showing the viewport settled rather than drifting. | Pass | — | None | Direct pointer, wheel, layout, and capture check passed. |
+| 1280×800 layout and search | `documentElement.scrollWidth === clientWidth === 1280`; compact command search with the Theo result remained completely within the viewport; `pass-2-search-1280.png`. | Pass | — | None | Direct visual and measurement check passed. |
+| Reduced motion | The selected browser exposes viewport control but no media-feature emulation. No macOS setting was changed because that would alter a local system setting. The production code still contains the `prefers-reduced-motion` branches in `NetworkWorkspace.tsx`, `ForceGraphCanvas.tsx`, and `globals.css`; direct preference emulation was unavailable. | Limitation only; no app failure evidenced | Low | None | Requires browser media emulation or an approved system-setting change. |
+| Live valid Markdown refresh, no restart | With `apply_patch`, the exact Maya sentence changed to `Maya offers candid platform leadership advice.`. A production-browser refresh displayed that exact sentence in the visible `WHY THEY MATTER` panel. After restoring `gives`, another refresh visibly restored `Maya gives candid platform leadership advice.` and the 12-person graph remained loaded. | Pass | — | Seed edit restored | Direct live-server evidence passed. |
+| Live invalid Markdown error and recovery, no restart | With `apply_patch`, changing `relationship_strength: 5` to `6` and refreshing showed `Couldn't load your network`, `data/people/maya-patel.md`, and `relationship_strength: Too big: expected number to be <=5`. Restoring `5` and refreshing returned the graph (`12 people loaded`, graph region visible, no error region). `git diff --quiet -- data/people/maya-patel.md` exited `0`. | Pass | — | Seed edit restored | Direct live-server and Git evidence passed. |
+
+### Visual critique
+
+- **Generated:** Nothing reads as an ungrounded dashboard template: each rail group answers a relationship-management question, the graph exposes the concrete network, and the details carry source-backed notes. `RELATIONSHIP FIELD` is slightly abstract/showroom-like copy, but it is small, subdued, and does not obstruct orientation; it is not a material usability failure.
+- **Unnecessary:** No control felt unnecessary in the captured states. Search, Refresh, the rail, graph, details, close affordance, and Markdown path all correspond to a plausible local-network workflow.
+- **Cheap:** Borders, muted colors, directional links, and detail hierarchy held up at both tested sizes. The compact palette uses the same restrained visual language rather than a generic overlay treatment.
+- **Prominence and hiding:** Search is discoverable without overwhelming the title; overdue reconnect values and high-priority targets are scannable. The selected graph deliberately fades unrelated nodes to foreground the active person's ties; it still retains sufficient context through the central anchor and visible connected edges.
+- **Usefulness:** The graph is useful as a spatial relationship view because selection exposes concrete people, direct links, and introducer direction rather than decorative activity. The rail is faster for a task-driven scan, and the two surfaces complement rather than duplicate one another.
+- **Sidebar scanning:** Fast: short headings divide the list into action-oriented groups, each row gives the minimum identity/context signal, and the right-edge recency/priority markers make comparison immediate.
+- **Motion:** Panel and palette motion communicates entry/exit; selection emphasis and pan/zoom have direct interaction purpose. No animation was observed that exists solely for decoration. Reduced-motion execution could not be directly emulated with the available browser capability.
+
+No pass-two product failure was recorded, so no source or test change was warranted and no behavioral TDD cycle applied.
