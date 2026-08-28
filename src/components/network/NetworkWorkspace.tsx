@@ -5,6 +5,7 @@ import { NetworkGraph } from "@/components/network/NetworkGraph";
 import { RefreshPeopleButton } from "@/components/network/RefreshPeopleButton";
 import { PersonDetail } from "@/components/people/PersonDetail";
 import { RelationshipSidebar } from "@/components/people/RelationshipSidebar";
+import { SearchCommand } from "@/components/search/SearchCommand";
 import type { ISODate, PeopleDataset } from "@/types/person";
 
 interface NetworkWorkspaceProps {
@@ -30,7 +31,10 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
             {loadedPeopleCount} {loadedPeopleCount === 1 ? "person" : "people"} loaded
           </p>
         </div>
-        <RefreshPeopleButton />
+        <div className="flex items-center gap-2">
+          <SearchCommand people={initialDataset.people} onSelect={selectPerson} />
+          <RefreshPeopleButton />
+        </div>
       </header>
 
       <div className="flex flex-col gap-6 lg:flex-row">
