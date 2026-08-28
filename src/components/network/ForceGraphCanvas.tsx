@@ -43,9 +43,9 @@ const TOOLTIP_WIDTH = 240;
 const TOOLTIP_HEIGHT = 116;
 
 const relevanceColor: Record<StrategicRelevance, string> = {
-  high: "#d97706",
-  medium: "#0284c7",
-  low: "#94a3b8",
+  high: "#b65f43",
+  medium: "#748468",
+  low: "#969895",
 };
 
 function endpointId(endpoint: GraphLink["source"] | undefined): string | undefined {
@@ -158,29 +158,29 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
     if (selected || hovered) {
       context.beginPath();
       context.arc(node.x, node.y, radius + 6.5 / scale, 0, Math.PI * 2);
-      context.strokeStyle = selected ? "#0f172a" : "#64748b";
+      context.strokeStyle = selected ? "#315f58" : "#6b6e70";
       context.lineWidth = 1.5 / scale;
       context.stroke();
     }
 
     if (node.isSelf) {
       drawDiamond(context, node.x, node.y, radius, 2 / scale);
-      context.fillStyle = "#0f172a";
+      context.fillStyle = "#1b1d1e";
       context.fill();
     } else {
       context.beginPath();
       context.arc(node.x, node.y, radius, 0, Math.PI * 2);
-      context.fillStyle = selected ? "#334155" : "#f8fafc";
+      context.fillStyle = selected ? "#315f58" : "#faf9f6";
       context.fill();
-      context.strokeStyle = "#334155";
+      context.strokeStyle = selected ? "#315f58" : "#6b6e70";
       context.lineWidth = 1.4 / scale;
       context.stroke();
     }
 
     const fontSize = 11 / scale;
-    context.font = `${node.isSelf ? 650 : 550} ${fontSize}px ui-sans-serif, system-ui, sans-serif`;
+    context.font = `${node.isSelf ? 700 : 590} ${fontSize}px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
     labelWidthsRef.current.set(node.personId, context.measureText(node.name).width * scale);
-    context.fillStyle = "#0f172a";
+    context.fillStyle = emphasized ? "#1b1d1e" : "#929594";
     context.textAlign = "left";
     context.textBaseline = "middle";
     context.fillText(node.name, node.x + radius + 7 / scale, node.y);
@@ -291,7 +291,7 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
 
   return (
     <div
-      className="relative h-[min(68vh,44rem)] min-h-[28rem] w-full overflow-hidden"
+      className="orbit-graph-canvas"
       onPointerDownCapture={(event) => {
         draggedRef.current = false;
         pointerDownRef.current = isPrimaryPointerActivation(event)
@@ -310,6 +310,7 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
       {size.width > 0 && size.height > 0 && (
         <ForceGraph2D<GraphNode, GraphLink>
           autoPauseRedraw
+          backgroundColor="#f4f3ef"
           cooldownTicks={120}
           d3AlphaDecay={0.035}
           d3VelocityDecay={0.34}
@@ -321,12 +322,13 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
           height={size.height}
           linkColor={(link: LinkObject<GraphNode, GraphLink>) => {
             const emphasized = isLinkEmphasized(link);
-            if (link.kind === "introduced_by") return emphasized ? "rgba(2, 132, 199, 0.72)" : "rgba(2, 132, 199, 0.12)";
-            return emphasized ? "rgba(71, 85, 105, 0.62)" : "rgba(71, 85, 105, 0.1)";
+            if (link.kind === "introduced_by") return emphasized ? "rgba(116, 132, 104, 0.72)" : "rgba(116, 132, 104, 0.12)";
+            if (activeId) return emphasized ? "rgba(49, 95, 88, 0.62)" : "rgba(107, 110, 112, 0.1)";
+            return "rgba(107, 110, 112, 0.52)";
           }}
           linkDirectionalArrowColor={(link: LinkObject<GraphNode, GraphLink>) => isLinkEmphasized(link)
-            ? "rgba(2, 132, 199, 0.8)"
-            : "rgba(2, 132, 199, 0.14)"}
+            ? "rgba(116, 132, 104, 0.82)"
+            : "rgba(116, 132, 104, 0.14)"}
           linkDirectionalArrowLength={(link: LinkObject<GraphNode, GraphLink>) => link.directed ? 6 : 0}
           linkDirectionalArrowRelPos={0.72}
           linkLineDash={(link: LinkObject<GraphNode, GraphLink>) => link.kind === "introduced_by" ? [5, 4] : null}
@@ -345,14 +347,14 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
 
       {hoveredNode && (
         <div
-          className="pointer-events-none absolute left-0 top-0 z-10 max-h-[calc(100%-1rem)] w-60 max-w-[calc(100%-1rem)] overflow-hidden rounded-md border border-slate-200 bg-white/95 px-3 py-2.5 text-xs shadow-lg shadow-slate-900/10 backdrop-blur-sm"
+          className="graph-tooltip"
           role="tooltip"
           style={{ transform: `translate3d(${tooltipX}px, ${tooltipY}px, 0)` }}
         >
-          <p className="font-semibold text-slate-950">{hoveredNode.name}</p>
-          {roleAndTeam && <p className="mt-0.5 text-slate-600">{roleAndTeam}</p>}
+          <p className="graph-tooltip__name">{hoveredNode.name}</p>
+          {roleAndTeam && <p className="graph-tooltip__context">{roleAndTeam}</p>}
           {!hoveredNode.isSelf && (
-            <div className="mt-2 space-y-0.5 text-slate-700">
+            <div className="graph-tooltip__meta">
               <p>Relationship {hoveredNode.strength - 4}/5</p>
               {hoveredNode.strategicRelevance && (
                 <p>Strategic relevance {titleCase(hoveredNode.strategicRelevance)}</p>

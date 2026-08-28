@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Copy, FilePenLine, X } from "lucide-react";
 import { toVscodeFileHref } from "@/lib/local-files";
 import type { ISODate, Person } from "@/types/person";
 import { MarkdownSection } from "./MarkdownSection";
@@ -49,81 +50,89 @@ function PersonDetailContent({ person, people, onSelectPerson, onClose }: Person
   }
 
   return (
-    <aside aria-label={`${person.name} details`} className="w-full rounded-lg border border-slate-200 bg-white p-5 md:w-96">
-      <div className="flex items-start justify-between gap-4">
+    <aside aria-label={`${person.name} details`} className="person-detail">
+      <div className="person-detail__inner">
+      <div className="person-detail__header">
         <div className="min-w-0">
-          <h2 className="text-xl font-semibold tracking-tight text-slate-950">{person.name}</h2>
-          {roleAndTeam && <p className="mt-1 text-sm text-slate-600">{roleAndTeam}</p>}
-          {person.company && <p className="mt-1 text-sm text-slate-600">{person.company}</p>}
+          <h2 className="person-detail__name">{person.name}</h2>
+          {roleAndTeam && <p className="person-detail__role">{roleAndTeam}</p>}
+          {person.company && <p className="person-detail__company">{person.company}</p>}
         </div>
         <button
           aria-label="Close details"
-          className="rounded p-1 text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+          className="icon-button"
           onClick={onClose}
           type="button"
         >
-          ×
+          <X aria-hidden="true" className="size-4" strokeWidth={1.75} />
         </button>
       </div>
 
-      <dl className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+      <dl className="person-detail__facts">
         <div>
-          <dt className="text-slate-500">Relationship</dt>
-          <dd className="mt-1"><RelationshipStrength value={person.relationshipStrength} /></dd>
+          <dt className="person-detail__fact-label">Relationship</dt>
+          <dd className="person-detail__fact-value"><RelationshipStrength value={person.relationshipStrength} /></dd>
         </div>
         {person.strategicRelevance && (
           <div>
-            <dt className="text-slate-500">Strategic relevance</dt>
-            <dd className="mt-1 font-medium text-slate-900">{titleCase(person.strategicRelevance)}</dd>
+            <dt className="person-detail__fact-label">Strategic relevance</dt>
+            <dd className="person-detail__fact-value">
+              <span className="relevance-value" data-relevance={person.strategicRelevance}>
+                {titleCase(person.strategicRelevance)}
+              </span>
+            </dd>
           </div>
         )}
         {person.effectiveLastContact && (
           <div>
-            <dt className="text-slate-500">Last contact</dt>
-            <dd className="mt-1 text-slate-900">{formatDate(person.effectiveLastContact)}</dd>
+            <dt className="person-detail__fact-label">Last contact</dt>
+            <dd className="person-detail__fact-value">{formatDate(person.effectiveLastContact)}</dd>
           </div>
         )}
         <div>
-          <dt className="text-slate-500">Interactions</dt>
-          <dd className="mt-1 text-slate-900">{interactionCount} {interactionCount === 1 ? "interaction" : "interactions"}</dd>
+          <dt className="person-detail__fact-label">Interactions</dt>
+          <dd className="person-detail__fact-value">{interactionCount} {interactionCount === 1 ? "interaction" : "interactions"}</dd>
         </div>
       </dl>
 
       {introducer && (
-        <p className="mt-4 text-sm text-slate-600">
+        <p className="person-detail__introducer">
           Introduced by {" "}
-          <button className="font-medium text-slate-900 underline underline-offset-2" onClick={() => onSelectPerson(introducer.id)} type="button">
+          <button className="text-action" onClick={() => onSelectPerson(introducer.id)} type="button">
             {introducer.name}
           </button>
         </p>
       )}
 
-      <Separator className="my-5" />
-      <div className="space-y-5">
+      <Separator className="person-detail__divider" />
+      <div className="person-detail__sections">
         <MarkdownSection markdown={person.sections.whyTheyMatter} title="Why they matter" />
         <MarkdownSection markdown={person.sections.context} title="Context" />
         {latestInteraction && (
-          <section aria-labelledby="latest-interaction-heading" className="space-y-2">
-            <h3 className="text-sm font-semibold text-slate-950" id="latest-interaction-heading">Latest interaction</h3>
-            <p className="text-sm font-medium text-slate-900">{latestInteraction.kind}</p>
-            <p className="text-xs text-slate-500">{formatDate(latestInteraction.date)}</p>
+          <section aria-labelledby="latest-interaction-heading" className="detail-section">
+            <h3 className="detail-section__heading" id="latest-interaction-heading">Latest interaction</h3>
+            <p className="person-detail__latest-kind">{latestInteraction.kind}</p>
+            <p className="person-detail__date">{formatDate(latestInteraction.date)}</p>
             <MarkdownSection markdown={latestInteraction.markdown} title="Conversation notes" />
           </section>
         )}
         <MarkdownSection markdown={person.sections.followUp} title="Follow-up" />
       </div>
 
-      <Separator className="my-5" />
-      <div className="flex flex-wrap items-center gap-3">
-        <a className="text-sm font-medium text-slate-900 underline underline-offset-2" href={toVscodeFileHref(person.sourcePath)}>
+      <Separator className="person-detail__divider" />
+      <div className="person-detail__actions">
+        <a className="text-action" href={toVscodeFileHref(person.sourcePath)}>
+          <FilePenLine aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
           Open Markdown
         </a>
-        <button className="text-sm font-medium text-slate-900 underline underline-offset-2" onClick={copyPath} type="button">
+        <button className="text-action" onClick={copyPath} type="button">
+          <Copy aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
           Copy path
         </button>
-        <span aria-live="polite" className="text-sm text-slate-600">{copyStatus}</span>
+        <span aria-live="polite" className="person-detail__status">{copyStatus}</span>
       </div>
-      <p className="mt-3 truncate font-mono text-xs text-slate-500" title={person.sourcePath}>{person.sourceRelativePath}</p>
+      <p className="person-detail__path" title={person.sourcePath}>{person.sourceRelativePath}</p>
+      </div>
     </aside>
   );
 }

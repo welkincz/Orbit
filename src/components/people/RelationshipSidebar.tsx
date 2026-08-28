@@ -27,15 +27,22 @@ interface PersonRowProps {
 }
 
 function PersonRow({ person, selectedId, onSelect, secondary }: PersonRowProps) {
+  const professionalContext = [person.role, person.team, person.company].filter(Boolean).join(" · ");
+
   return (
     <button
       aria-current={selectedId === person.id ? "true" : undefined}
-      className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-2 text-left hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+      className="relationship-row"
       onClick={() => onSelect(person.id)}
       type="button"
     >
-      <span className="min-w-0 truncate text-sm font-medium text-slate-900">{person.name}</span>
-      <span className="shrink-0 text-xs text-slate-500">{secondary}</span>
+      <span className="relationship-row__identity">
+        <span className="relationship-row__name">{person.name}</span>
+        {professionalContext && (
+          <span className="relationship-row__context">{professionalContext}</span>
+        )}
+      </span>
+      <span className="relationship-row__meta">{secondary}</span>
     </button>
   );
 }
@@ -51,9 +58,9 @@ function SidebarSection({
 }) {
   const headingId = `${heading.toLowerCase().replaceAll(" ", "-")}-heading`;
   return (
-    <section aria-labelledby={headingId} className="space-y-1">
-      <h2 className="px-2 text-xs font-semibold uppercase tracking-wide text-slate-500" id={headingId}>{heading}</h2>
-      {children.length > 0 ? children : <p className="px-2 text-sm text-slate-500">{emptyMessage}</p>}
+    <section aria-labelledby={headingId} className="relationship-section">
+      <h2 className="relationship-section__heading" id={headingId}>{heading}</h2>
+      {children.length > 0 ? children : <p className="relationship-section__empty">{emptyMessage}</p>}
     </section>
   );
 }
@@ -83,8 +90,8 @@ export function RelationshipSidebar({ dataset, currentDate, selectedId, onSelect
   const targets = useMemo(() => getTargets(dataset.people), [dataset.people]);
 
   return (
-    <aside aria-label="Relationship views" className="w-full rounded-lg border border-slate-200 bg-white p-3 md:w-64">
-      <div className="space-y-4">
+    <aside aria-label="Relationship views" className="relationship-sidebar">
+      <div className="relationship-sidebar__content">
         <SidebarSection emptyMessage="No inner-circle contacts." heading="Inner circle">
           {innerCircle.map((person) => (
             <PersonRow
@@ -96,30 +103,32 @@ export function RelationshipSidebar({ dataset, currentDate, selectedId, onSelect
             />
           ))}
         </SidebarSection>
-        <Separator />
+        <Separator className="relationship-divider" />
         <SidebarSection emptyMessage="You're caught up." heading="Reconnect">
           {reconnectCandidates.map((candidate) => reconnectRow(candidate, selectedId, onSelect))}
         </SidebarSection>
-        <Separator />
+        <Separator className="relationship-divider" />
         <SidebarSection emptyMessage="No recent conversations." heading="Recent conversations">
           {recentContacts.map((person) => (
             <PersonRow
               key={person.id}
               onSelect={onSelect}
               person={person}
-              secondary={person.effectiveLastContact ?? ""}
+              secondary={<span className="tabular">{person.effectiveLastContact ?? ""}</span>}
               selectedId={selectedId}
             />
           ))}
         </SidebarSection>
-        <Separator />
+        <Separator className="relationship-divider" />
         <SidebarSection emptyMessage="No targets yet." heading="Targets">
           {targets.map((person) => (
             <PersonRow
               key={person.id}
               onSelect={onSelect}
               person={person}
-              secondary={person.strategicRelevance ?? ""}
+              secondary={person.strategicRelevance
+                ? `${person.strategicRelevance[0].toUpperCase()}${person.strategicRelevance.slice(1)}`
+                : ""}
               selectedId={selectedId}
             />
           ))}

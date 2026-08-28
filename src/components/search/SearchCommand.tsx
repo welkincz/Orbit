@@ -90,7 +90,7 @@ function HighlightedText({ value, query }: { value: string; query: string }) {
   return (
     <>
       {value.slice(0, match.start)}
-      <mark className="rounded-sm bg-amber-100 px-0.5 text-inherit">{value.slice(match.start, match.end)}</mark>
+      <mark className="command-match">{value.slice(match.start, match.end)}</mark>
       {value.slice(match.end)}
     </>
   );
@@ -130,12 +130,12 @@ export function SearchCommand({ people, onSelect }: SearchCommandProps) {
     <Dialog onOpenChange={handleOpenChange} open={open}>
       <DialogTrigger asChild>
         <button
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          className="orbit-control"
           type="button"
         >
-          <Search aria-hidden="true" className="size-4" />
+          <Search aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
           <span>Search</span>
-          <kbd className="hidden rounded border border-slate-200 px-1.5 py-0.5 text-xs text-slate-500 sm:inline">⌘K</kbd>
+          <kbd className="orbit-kbd">⌘K</kbd>
         </button>
       </DialogTrigger>
       <DialogContent
@@ -146,28 +146,31 @@ export function SearchCommand({ people, onSelect }: SearchCommandProps) {
         }}
       >
         <DialogTitle className="sr-only">Search people</DialogTitle>
-        <Command label="Search people" shouldFilter={false}>
-          <Command.Input
-            aria-label="Search people"
-            className="h-10 w-full rounded-md border border-slate-200 px-3 text-sm outline-none placeholder:text-slate-400 focus:border-slate-500"
-            onValueChange={setQuery}
-            placeholder="Search people"
-            ref={inputRef}
-            value={query}
-          />
-          <Command.List className="mt-2 max-h-80 overflow-y-auto" label="People">
-            <Command.Empty className="px-3 py-6 text-sm text-slate-500">No people found.</Command.Empty>
+        <Command className="command-shell" label="Search people" shouldFilter={false}>
+          <div className="command-input-wrap">
+            <Search aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+            <Command.Input
+              aria-label="Search people"
+              className="command-input"
+              onValueChange={setQuery}
+              placeholder="Search people by name, role, team, or company"
+              ref={inputRef}
+              value={query}
+            />
+          </div>
+          <Command.List className="command-list" label="People">
+            <Command.Empty className="command-empty">No people found.</Command.Empty>
             {results.map((person) => {
               const subtitle = subtitleFor(person);
               return (
                 <Command.Item
-                  className="flex cursor-pointer flex-col gap-0.5 rounded-md px-3 py-2 text-left text-sm text-slate-900 aria-selected:bg-slate-100"
+                  className="command-result"
                   key={person.id}
                   onSelect={() => handleSelect(person.id)}
                   value={person.id}
                 >
-                  <span className="font-medium"><HighlightedText query={query} value={person.name} /></span>
-                  {subtitle && <span className="text-xs text-slate-500"><HighlightedText query={query} value={subtitle} /></span>}
+                  <span className="command-result__name"><HighlightedText query={query} value={person.name} /></span>
+                  {subtitle && <span className="command-result__context"><HighlightedText query={query} value={subtitle} /></span>}
                 </Command.Item>
               );
             })}

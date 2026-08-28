@@ -14,10 +14,10 @@ export const DialogContent = forwardRef<
 >(function DialogContent({ className, children, ...props }, ref) {
   return (
     <DialogPrimitive.Portal>
-      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-slate-950/25" />
+      <DialogPrimitive.Overlay className="dialog-overlay" />
       <DialogPrimitive.Content
         {...props}
-        className={`fixed left-1/2 top-[18vh] z-50 w-[min(32rem,calc(100%-2rem))] -translate-x-1/2 rounded-lg border border-slate-200 bg-white p-2 shadow-xl ${className ?? ""}`}
+        className={`dialog-content ${className ?? ""}`}
         ref={ref}
       >
         {children}

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { RelationshipSidebar } from "@/components/people/RelationshipSidebar";
@@ -8,6 +8,9 @@ import { makePerson } from "./fixtures/people";
 const jane = makePerson({
   id: "jane",
   name: "Jane Doe",
+  role: "Product lead",
+  team: "Strategy",
+  company: "Arc Systems",
   innerCircle: true,
   target: true,
   relationshipStrength: 4,
@@ -39,6 +42,20 @@ describe("RelationshipSidebar", () => {
     await user.click(screen.getAllByRole("button", { name: /jane doe/i })[1]);
     expect(onSelect).toHaveBeenCalledWith("jane");
     expect(screen.getByText("4d")).toHaveAttribute("title", "4 days overdue");
+  });
+
+  it("keeps professional context visible in every overlapping relationship row", () => {
+    const { container } = render(<RelationshipSidebar
+      dataset={datasetWithOverlappingJane}
+      currentDate="2026-08-27"
+      selectedId="jane"
+      onSelect={vi.fn()}
+    />);
+
+    expect(within(container).getAllByText("Product lead · Strategy · Arc Systems")).toHaveLength(4);
+    for (const row of within(container).getAllByRole("button", { name: /jane doe/i })) {
+      expect(row).toHaveAttribute("aria-current", "true");
+    }
   });
 
   it("uses the exact compact empty-state labels", () => {

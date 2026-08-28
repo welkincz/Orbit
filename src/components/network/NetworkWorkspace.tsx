@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { NetworkGraph } from "@/components/network/NetworkGraph";
 import { RefreshPeopleButton } from "@/components/network/RefreshPeopleButton";
 import { PersonDetail } from "@/components/people/PersonDetail";
@@ -16,6 +17,7 @@ interface NetworkWorkspaceProps {
 export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspaceProps) {
   const loadedPeopleCount = initialDataset.people.length;
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
   const selectPerson = useCallback((id: string | null) => setSelectedId(id), []);
   const selectedPerson = useMemo(
     () => initialDataset.people.find((person) => person.id === selectedId),
@@ -23,21 +25,21 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
   );
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-6 py-10">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Orbit</h1>
-          <p className="mt-2 text-sm text-slate-600">
+    <main className="orbit-shell">
+      <header className="orbit-header">
+        <div className="orbit-brand">
+          <h1 className="orbit-title">Orbit</h1>
+          <p className="orbit-count">
             {loadedPeopleCount} {loadedPeopleCount === 1 ? "person" : "people"} loaded
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="orbit-actions">
           <SearchCommand people={initialDataset.people} onSelect={selectPerson} />
           <RefreshPeopleButton />
         </div>
       </header>
 
-      <div className="flex flex-col gap-6 lg:flex-row">
+      <div className={`orbit-workspace${selectedPerson ? " has-detail" : ""}`}>
         <RelationshipSidebar
           currentDate={currentDate}
           dataset={initialDataset}
@@ -49,14 +51,32 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
           onSelect={selectPerson}
           selectedId={selectedId}
         />
-        {selectedPerson && (
-          <PersonDetail
-            onClose={() => setSelectedId(null)}
-            onSelectPerson={selectPerson}
-            people={initialDataset.people}
-            person={selectedPerson}
-          />
-        )}
+        <AnimatePresence initial={false}>
+          {selectedPerson && (
+            <motion.div
+              animate={{
+                opacity: 1,
+                x: 0,
+                transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] },
+              }}
+              className="orbit-detail-motion"
+              exit={{
+                opacity: 0,
+                x: reduceMotion ? 0 : 16,
+                transition: { duration: reduceMotion ? 0.001 : 0.18, ease: [0.22, 1, 0.36, 1] },
+              }}
+              initial={{ opacity: reduceMotion ? 0 : 0.01, x: reduceMotion ? 0 : 16 }}
+              key="person-detail"
+            >
+              <PersonDetail
+                onClose={() => setSelectedId(null)}
+                onSelectPerson={selectPerson}
+                people={initialDataset.people}
+                person={selectedPerson}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </main>
   );

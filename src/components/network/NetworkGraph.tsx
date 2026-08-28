@@ -19,7 +19,7 @@ export function NetworkGraph({ dataset, selectedId, onSelect }: NetworkGraphProp
     <section
       aria-describedby="relationship-graph-description"
       aria-label="Professional relationship graph"
-      className="min-h-[28rem] min-w-0 flex-1 overflow-hidden rounded-lg border border-slate-200 bg-white"
+      className="orbit-graph"
     >
       <p className="sr-only" id="relationship-graph-description">
         Interactive relationship map. Select a person to open their details, drag to pan, and scroll to zoom.

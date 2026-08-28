@@ -17,7 +17,7 @@ export function RefreshPeopleButton({ label = "Refresh" }: RefreshPeopleButtonPr
       type="button"
       onClick={() => startTransition(() => router.refresh())}
       disabled={isPending}
-      className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
+      className="orbit-control"
     >
       <RefreshCw
         aria-hidden="true"
