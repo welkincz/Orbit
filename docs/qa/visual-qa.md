@@ -58,3 +58,36 @@ No product source or test changes were warranted by the completed pass-one findi
 - **Motion:** Panel and palette motion communicates entry/exit; selection emphasis and pan/zoom have direct interaction purpose. No animation was observed that exists solely for decoration. Reduced-motion execution could not be directly emulated with the available browser capability.
 
 No pass-two product failure was recorded, so no source or test change was warranted and no behavioral TDD cycle applied.
+
+## Enhancement pass — action filters, drag layout, and Conversation Prep
+
+- Date: 2026-08-29
+- Browser: Codex In-app Browser
+- Branch state inspected: `feature/map-conversation-prep` after `7e1d88d` plus the Task 6 seed/documentation changes
+- Runtime: freshly completed `npm run build`, followed by the production server at `http://127.0.0.1:3142/`
+- Automated baseline: 18 test files, 126 tests passed; typecheck, lint, build, and `git diff --check` passed
+- Screenshots: `screenshots/enhancement-default-1440.png`, `screenshots/enhancement-filter-1440.png`, and `screenshots/enhancement-prep-1440.png`, each verified as real 1440×900 PNG data
+
+| Check | Evidence | Finding | Severity | Change / recheck |
+| --- | --- | --- | --- | --- |
+| Filter control semantics | At 1440×900, the toolbar exposed All, Inner Circle, Reconnect, Recent, and Targets. Activating each produced exactly one matching `aria-pressed="true"` button in the sequence requested. | Pass | — | No change. |
+| Dim without hiding | The Targets capture retains every person and relationship while Marcus Vale and Priya Desai remain fully legible with the active-view treatment; unrelated nodes and links remain as quiet context. | Pass | — | `enhancement-filter-1440.png`. |
+| Breathing effect | Two Targets captures 850 ms apart produced different full-frame SHA-256 prefixes (`73e50ad0847a9545` and `c9b5b049c02c8369`) after the physics layout had settled, consistent with active canvas halo animation. Labels did not change position. | Pass | — | Direct animation-frame evidence. |
+| Reduced-motion fallback | The browser still does not expose media-feature emulation. Source and build inspection confirm `useReducedMotion()` makes the pulse constant and enables canvas auto-pause, but the preference could not be toggled directly without changing a system setting. | Limitation only | Low | Requires media emulation or explicit approval to change the macOS setting. |
+| Hover/selection priority | With Targets active, selecting Maya made Maya and her connected topology visually dominant while target halos remained contextual. The rail and detail selection stayed synchronized. | Pass | — | `enhancement-prep-1440.png`. |
+| Node drag and refresh persistence | Maya was dragged from approximately `(826, 701)` to `(560, 618)`. After a full browser reload and force-layout cooldown, Maya remained spatially far left of Charlie rather than returning to her automatic position. | Pass | — | Direct drag, reload, and screenshot comparison passed. |
+| Reset layout | Reset layout released the dragged Maya position and produced a new automatic layout. A subsequent full reload retained the automatic behavior rather than restoring the fixed coordinate. | Pass | — | Direct reset, reload, and screenshot comparison passed. |
+| Conversation Prep ordering | Maya's visible detail headings were Why they matter, Context, Conversation Prep, Next conversation, Latest interaction, Conversation notes, and Follow-up. Next conversation therefore preceded history as designed. | Pass | — | Direct DOM order and visible-text check passed. |
+| Conversation Prep content | Maya's Next conversation and open Their world content were visible; the other durable sections appeared as compact disclosures. | Pass | — | `enhancement-prep-1440.png`. |
+| Empty prep template | Owen displayed Copy Conversation Prep template and announced `Template copied.` after activation. The in-app tab clipboard inspection surface returned an empty value, so exact live clipboard contents could not be independently read there; the component test verifies all five schema headings passed to `navigator.clipboard.writeText`. | Pass with automation limitation | Low | UI status verified live; payload verified by automated test. |
+| 1280×800 layout | The document reported `clientWidth === scrollWidth === 1280`. Graph controls ended at x=899, the graph ended at x=912, and the detail began at x=912, so controls did not overlap the detail panel or cause horizontal overflow. | Pass | — | Direct measurement and visual inspection passed. |
+| Browser errors | The production tab reported zero captured console errors after filter, detail, copy, drag, reload, and reset interactions. | Pass | — | No change. |
+| Screenshot format | The browser again returned JPEG bytes under `.png` names. | Resolved artifact-format finding | Low | Converted with `sips -s format png` and verified all three with `file`. |
+
+### Enhancement visual critique
+
+- The filter toolbar is compact, readable, and secondary to the network itself. It remains distinct from the Relationship field label and does not intrude into the detail panel at 1280 or 1440 pixels.
+- Action-view halos add a second visual channel without replacing strategic-relevance rims. The Targets view remains interpretable even when a non-target person is selected.
+- Dimming is intentionally strong. It keeps the active group unmistakable while retaining enough topology to understand how highlighted people connect through Charlie and introducers.
+- Conversation Prep changes the detail panel from historical reference to practical preparation: the next discussion is visible first, durable context is available without forcing every block open, and existing interactions remain close beneath it.
+- Drag persistence makes personal spatial organization possible without compromising Markdown portability. Reset layout is visible beside the filters and successfully restores the automatic model.

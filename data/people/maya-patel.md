@@ -26,6 +26,26 @@ Maya gives candid platform leadership advice.
 
 Met through a cross-team architecture forum.
 
+## Conversation Prep
+
+### Their world
+
+Maya's platform group is clarifying ownership boundaries across product teams.
+
+### What they care about
+
+- Clear decision rights
+- Platform work tied to measurable product outcomes
+
+### Remember
+
+Charlie offered to share a concise platform operating-model example.
+
+### Next conversation
+
+- Ask how the ownership discussion landed
+- Share the operating-model example if it is still useful
+
 ## Interactions
 
 ### 2026-08-18 — Coffee chat
