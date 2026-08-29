@@ -6,8 +6,16 @@ import { NetworkWorkspace } from "@/components/network/NetworkWorkspace";
 import type { PeopleDataset } from "@/types/person";
 import { makePerson } from "./fixtures/people";
 
-vi.mock("@/components/network/NetworkGraph", () => ({ NetworkGraph: () => null }));
-vi.mock("@/components/people/RelationshipSidebar", () => ({ RelationshipSidebar: () => null }));
+vi.mock("@/components/network/NetworkGraph", () => ({
+  NetworkGraph: ({ selectedId }: { selectedId: string | null }) => (
+    <div data-testid="network-graph" data-selected-id={selectedId ?? ""} />
+  ),
+}));
+vi.mock("@/components/people/RelationshipSidebar", () => ({
+  RelationshipSidebar: ({ selectedId }: { selectedId: string | null }) => (
+    <div data-testid="relationship-sidebar" data-selected-id={selectedId ?? ""} />
+  ),
+}));
 vi.mock("@/components/network/RefreshPeopleButton", () => ({
   RefreshPeopleButton: () => <button type="button">Refresh</button>,
 }));
@@ -140,5 +148,30 @@ describe("SearchCommand", () => {
     await user.keyboard("{Enter}");
 
     expect(await screen.findByRole("heading", { name: "Maya Patel" })).toBeVisible();
+  });
+
+  it("clears selection everywhere when refreshed data no longer contains the selected person", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<NetworkWorkspace currentDate="2026-08-27" initialDataset={dataset} />);
+
+    await user.click(screen.getByRole("button", { name: /search/i }));
+    await user.type(await screen.findByRole("combobox", { name: /search people/i }), "Maya");
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("heading", { name: "Maya Patel" })).toBeVisible();
+    expect(screen.getByTestId("network-graph")).toHaveAttribute("data-selected-id", "maya-patel");
+    expect(screen.getByTestId("relationship-sidebar")).toHaveAttribute("data-selected-id", "maya-patel");
+
+    const refreshedDataset = {
+      ...dataset,
+      people: dataset.people.filter((person) => person.id !== "maya-patel"),
+      loadedAt: "2026-08-27T00:01:00.000Z",
+    };
+    rerender(<NetworkWorkspace currentDate="2026-08-27" initialDataset={refreshedDataset} />);
+
+    await waitFor(() => {
+      expect(screen.queryByRole("heading", { name: "Maya Patel" })).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId("network-graph")).toHaveAttribute("data-selected-id", "");
+    expect(screen.getByTestId("relationship-sidebar")).toHaveAttribute("data-selected-id", "");
   });
 });

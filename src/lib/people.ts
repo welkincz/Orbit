@@ -95,17 +95,32 @@ export function validatePeopleCollection(people: Person[], currentDate: ISODate)
   const issues: string[] = [];
   const counts = new Map<string, number>();
   for (const person of people) counts.set(person.id, (counts.get(person.id) ?? 0) + 1);
-  for (const [id, count] of counts) if (count > 1) issues.push(`duplicate id: ${id}`);
+  for (const [id, count] of counts) {
+    if (count > 1) {
+      const paths = people
+        .filter((person) => person.id === id)
+        .map((person) => person.sourceRelativePath)
+        .join(", ");
+      issues.push(`duplicate id: ${id} (${paths})`);
+    }
+  }
 
   const selfRecords = people.filter((person) => person.type === "self");
-  if (selfRecords.length !== 1) issues.push(`expected exactly one type: self record; found ${selfRecords.length}`);
+  if (selfRecords.length !== 1) {
+    const involvedRecords = selfRecords.length > 1 ? selfRecords : people;
+    const paths = involvedRecords.map((person) => person.sourceRelativePath).join(", ");
+    const pathContext = paths ? ` (${paths})` : "";
+    issues.push(`expected exactly one type: self record; found ${selfRecords.length}${pathContext}`);
+  }
 
   const ids = new Set(people.map((person) => person.id));
   for (const person of people) {
     if (person.introducedBy && !ids.has(person.introducedBy)) {
-      issues.push(`${person.id}: introduced_by references missing person ${person.introducedBy}`);
+      issues.push(`${person.sourceRelativePath}: ${person.id} introduced_by references missing person ${person.introducedBy}`);
     }
-    if (person.introducedBy === person.id) issues.push(`${person.id}: introduced_by cannot reference itself`);
+    if (person.introducedBy === person.id) {
+      issues.push(`${person.sourceRelativePath}: ${person.id} introduced_by cannot reference itself`);
+    }
     if (person.effectiveLastContact && person.effectiveLastContact > currentDate) {
       issues.push(`${person.id}: last contact cannot be in the future`);
     }

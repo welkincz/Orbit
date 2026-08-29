@@ -16,9 +16,19 @@ interface NetworkWorkspaceProps {
 
 export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspaceProps) {
   const loadedPeopleCount = initialDataset.people.length;
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selection, setSelection] = useState({ dataset: initialDataset, selectedId: null as string | null });
+  const selectedId = selection.dataset === initialDataset
+    || initialDataset.people.some((person) => person.id === selection.selectedId)
+    ? selection.selectedId
+    : null;
+  if (selection.dataset !== initialDataset) {
+    setSelection({ dataset: initialDataset, selectedId });
+  }
   const reduceMotion = useReducedMotion();
-  const selectPerson = useCallback((id: string | null) => setSelectedId(id), []);
+  const selectPerson = useCallback(
+    (id: string | null) => setSelection({ dataset: initialDataset, selectedId: id }),
+    [initialDataset],
+  );
   const selectedPerson = useMemo(
     () => initialDataset.people.find((person) => person.id === selectedId),
     [initialDataset.people, selectedId],
@@ -69,7 +79,7 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
               key="person-detail"
             >
               <PersonDetail
-                onClose={() => setSelectedId(null)}
+                onClose={() => selectPerson(null)}
                 onSelectPerson={selectPerson}
                 people={initialDataset.people}
                 person={selectedPerson}

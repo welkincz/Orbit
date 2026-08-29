@@ -12,7 +12,7 @@ This is a TypeScript, React, and Next.js App Router application with Tailwind CS
 
 The graph is a client-only canvas; the sidebar, Cmd/Ctrl+K command palette, and detail panel are accessible DOM alternatives. There is no file watcher or polling loop. After changing Markdown in VS Code, use the in-app Refresh control or reload the browser; either causes the local server to reread the repository files without a server restart. A malformed record produces a file-specific error screen instead of showing stale data.
 
-Production remains local: `npm run build` followed by `npm run start` serves the app through the local Node server and continues to reread the current repository files on refresh.
+Production remains local: `npm run build` followed by `npm run start` serves the app through the local Node server on IPv4 loopback (`127.0.0.1`) and continues to reread the current repository files on refresh.
 
 ## Markdown schema
 
@@ -122,7 +122,7 @@ This keeps targets connected while preserving meaningful topology. The canvas gr
 
 ## Development
 
-Use Node and the lockfile-managed dependencies:
+Use Node 22 or newer and the lockfile-managed dependencies. Both `npm run dev` and `npm run start` explicitly bind to `127.0.0.1`, so Orbit is reachable only from this computer by default.
 
 ```bash
 npm ci                 # clean, reproducible install
@@ -134,6 +134,8 @@ npm run typecheck      # TypeScript without emitting files
 npm run build          # production build
 npm run start          # production server (run after build)
 ```
+
+Do not override the hostname with `0.0.0.0`, a LAN address, or another non-loopback interface unless you intentionally want to expose this private relationship data to other devices and have reviewed the network and firewall implications.
 
 For the final repository audit, also run `git diff --check` and `find . -name "._*" -print`; the latter should produce no AppleDouble sidecar files. Browser smoke checks should exercise sidebar selection, graph selection, Cmd/Ctrl+K open/close and keyboard selection, the detail panel, and a refreshed Markdown edit/error/recovery cycle against `npm run start`.
 

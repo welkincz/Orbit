@@ -72,4 +72,73 @@ describe("people data", () => {
   it.each(["no self", "two self records", "duplicate ids"])("rejects %s", (scenario) => {
     expect(() => collectionForScenario(scenario)).toThrow();
   });
+
+  it("names every source file involved in a duplicate ID", () => {
+    expect(() => validatePeopleCollection([
+      person({ sourceRelativePath: "data/people/charlie.md" }),
+      person({
+        type: "person",
+        relationshipStrength: 3,
+        strategicRelevance: "high",
+        sourceRelativePath: "data/people/impostor.md",
+      }),
+    ], "2026-08-27")).toThrow(/data\/people\/charlie\.md.*data\/people\/impostor\.md/i);
+  });
+
+  it.each([
+    {
+      label: "missing introducer",
+      introducedBy: "missing-person",
+      expectedPath: "data/people/alex.md",
+      expectedIssue: /references missing person/i,
+    },
+    {
+      label: "self introducer",
+      introducedBy: "alex",
+      expectedPath: "data/people/alex.md",
+      expectedIssue: /cannot reference itself/i,
+    },
+  ])("names the source file for $label", ({ introducedBy, expectedPath, expectedIssue }) => {
+    expect(() => validatePeopleCollection([
+      person({ sourceRelativePath: "data/people/charlie.md" }),
+      person({
+        id: "alex",
+        type: "person",
+        relationshipStrength: 3,
+        strategicRelevance: "high",
+        introducedBy,
+        sourceRelativePath: expectedPath,
+      }),
+    ], "2026-08-27")).toThrow(new RegExp(`${expectedPath.replaceAll(".", "\\.")}.*${expectedIssue.source}`, "i"));
+  });
+
+  it.each([
+    {
+      label: "no self record",
+      people: [person({
+        id: "alex",
+        type: "person",
+        relationshipStrength: 3,
+        strategicRelevance: "high",
+        sourceRelativePath: "data/people/alex.md",
+      })],
+      paths: ["data/people/alex.md"],
+    },
+    {
+      label: "multiple self records",
+      people: [
+        person({ sourceRelativePath: "data/people/charlie.md" }),
+        person({ id: "also-me", sourceRelativePath: "data/people/also-me.md" }),
+      ],
+      paths: ["data/people/charlie.md", "data/people/also-me.md"],
+    },
+  ])("names the involved source files for $label", ({ people, paths }) => {
+    try {
+      validatePeopleCollection(people, "2026-08-27");
+      throw new Error("Expected validation to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      for (const path of paths) expect((error as Error).message).toContain(path);
+    }
+  });
 });

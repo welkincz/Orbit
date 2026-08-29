@@ -1,4 +1,4 @@
-import { copyFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { chmod, copyFile, mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -78,6 +78,33 @@ describe("Markdown people data", () => {
     expect(extracted.sections.followUp).toBe("- Send the article");
     expect(extracted.sections.followUp.match(/Send the article/g)).toHaveLength(1);
   });
+
+  it.each(["Follow up", "Follow-up"])(
+    "extracts person-level %s without an Interactions section and excludes it from Context",
+    (heading) => {
+      const markdown = `## Context
+
+We have not met yet.
+
+### ${heading}
+
+- Find a warm introduction
+
+### Notes
+
+Keep this separate context note.
+`;
+
+      expect(extractMarkdownSections(markdown)).toEqual({
+        interactions: [],
+        sections: {
+          whyTheyMatter: "",
+          context: "We have not met yet.\n\n### Notes\n\nKeep this separate context note.",
+          followUp: "- Find a warm introduction",
+        },
+      });
+    },
+  );
 
   it("keeps Why they matter, Context, and Interactions within exact H2 boundaries", () => {
     const person = parsePersonMarkdown(validSource, options);
@@ -225,6 +252,22 @@ Second.
       expect(error).toBeInstanceOf(PeopleDataError);
       expect(error).toMatchObject({ sourceRelativePath: expect.stringContaining("invalid-contact.md") });
       expect((error as PeopleDataError).issues.join(" ")).toMatch(/strategic_relevance/i);
+    }
+  });
+
+  it("wraps a per-file read failure with that Markdown file's relative path", async () => {
+    const directory = await temporaryDirectory();
+    const unreadablePath = join(directory, "unreadable.md");
+    await writeFile(unreadablePath, selfSource);
+    await chmod(unreadablePath, 0o000);
+
+    try {
+      await loadPeopleFromDirectory(directory, "2026-08-27");
+      throw new Error("Expected loading to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PeopleDataError);
+      expect(error).toMatchObject({ sourceRelativePath: expect.stringContaining("unreadable.md") });
+      expect((error as PeopleDataError).issues.join(" ")).toMatch(/could not be read/i);
     }
   });
 

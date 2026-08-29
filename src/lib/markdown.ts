@@ -66,24 +66,14 @@ function followUpBlockEnd(nodes: RootContent[], start: number): number {
   return nextHeading === -1 ? nodes.length : nextHeading;
 }
 
-function interactionsAndFollowUp(source: string, nodes: RootContent[]): {
-  interactions: Interaction[];
-  followUp: string;
-} {
+function interactionHistory(source: string, nodes: RootContent[]): Interaction[] {
   const extracted: Array<{ interaction: Interaction; sourceIndex: number }> = [];
-  const followUps: string[] = [];
 
   nodes.forEach((node, sourceIndex) => {
     if (!isHeading(node, 3)) return;
 
     const heading = toString(node).trim();
-
-    if (FOLLOW_UP_HEADING.test(heading)) {
-      const body = nodes.slice(sourceIndex + 1, followUpBlockEnd(nodes, sourceIndex));
-      const followUp = originalMarkdown(source, body);
-      if (followUp) followUps.push(followUp);
-      return;
-    }
+    if (FOLLOW_UP_HEADING.test(heading)) return;
 
     const match = INTERACTION_HEADING.exec(heading);
     if (!match) return;
@@ -110,16 +100,52 @@ function interactionsAndFollowUp(source: string, nodes: RootContent[]): {
     || left.sourceIndex - right.sourceIndex
   ));
 
-  return {
-    interactions: extracted.map(({ interaction }) => interaction),
-    followUp: followUps.join("\n\n"),
+  return extracted.map(({ interaction }) => interaction);
+}
+
+function personFollowUps(source: string, nodes: RootContent[]): string {
+  const followUps = nodes.flatMap((node, sourceIndex) => {
+    if (!isHeading(node, 3) || !FOLLOW_UP_HEADING.test(toString(node).trim())) return [];
+    const body = nodes.slice(sourceIndex + 1, followUpBlockEnd(nodes, sourceIndex));
+    const followUp = originalMarkdown(source, body);
+    return followUp ? [followUp] : [];
+  });
+
+  return followUps.join("\n\n");
+}
+
+function markdownWithoutPersonFollowUps(source: string, nodes: RootContent[]): string {
+  const chunks: string[] = [];
+  let current: RootContent[] = [];
+
+  const flush = () => {
+    const markdown = originalMarkdown(source, current);
+    if (markdown) chunks.push(markdown);
+    current = [];
   };
+
+  for (let index = 0; index < nodes.length; index += 1) {
+    const node = nodes[index];
+    if (isHeading(node, 3) && FOLLOW_UP_HEADING.test(toString(node).trim())) {
+      flush();
+      index = followUpBlockEnd(nodes, index) - 1;
+      continue;
+    }
+    current.push(node);
+  }
+
+  flush();
+  return chunks.join("\n\n");
 }
 
 export function extractMarkdownSections(markdown: string): ExtractedMarkdownSections {
   const root = unified().use(remarkParse).parse(markdown);
   const children = root.children;
-  const sections: PersonSections = { whyTheyMatter: "", context: "", followUp: "" };
+  const sections: PersonSections = {
+    whyTheyMatter: "",
+    context: "",
+    followUp: personFollowUps(markdown, children),
+  };
   let interactions: Interaction[] = [];
 
   children.forEach((node, index) => {
@@ -128,13 +154,11 @@ export function extractMarkdownSections(markdown: string): ExtractedMarkdownSect
     const heading = toString(node).trim().toLowerCase();
     const nodes = children.slice(index + 1, sectionEnd(children, index));
     if (heading === "why they matter") {
-      sections.whyTheyMatter = originalMarkdown(markdown, nodes);
+      sections.whyTheyMatter = markdownWithoutPersonFollowUps(markdown, nodes);
     } else if (heading === "context") {
-      sections.context = originalMarkdown(markdown, nodes);
+      sections.context = markdownWithoutPersonFollowUps(markdown, nodes);
     } else if (heading === "interactions") {
-      const extracted = interactionsAndFollowUp(markdown, nodes);
-      interactions = extracted.interactions;
-      sections.followUp = extracted.followUp;
+      interactions = interactionHistory(markdown, nodes);
     }
   });
 
@@ -235,9 +259,20 @@ export async function loadPeopleFromDirectory(
 
   const people = await Promise.all(entries.map(async (entry) => {
     const absolutePath = resolve(directory, entry.name);
-    return parsePersonMarkdown(await readFile(absolutePath, "utf8"), {
+    const relativePath = relative(process.cwd(), absolutePath);
+    let source: string;
+    try {
+      source = await readFile(absolutePath, "utf8");
+    } catch {
+      throw new PeopleDataError("Unable to read person Markdown", {
+        sourceRelativePath: relativePath,
+        issues: ["File could not be read."],
+      });
+    }
+
+    return parsePersonMarkdown(source, {
       absolutePath,
-      relativePath: relative(process.cwd(), absolutePath),
+      relativePath,
       currentDate,
     });
   }));
