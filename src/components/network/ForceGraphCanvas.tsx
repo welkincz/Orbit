@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ForceGraph2D, {
   type ForceGraphMethods,
   type LinkObject,
@@ -25,6 +25,12 @@ import {
   getRelationshipFilterIds,
   type RelationshipFilter,
 } from "@/lib/graph-filters";
+import {
+  clearGraphLayout,
+  readGraphLayout,
+  writeGraphLayout,
+  type GraphLayout,
+} from "@/lib/graph-layout";
 import type { ISODate, PeopleDataset, StrategicRelevance } from "@/types/person";
 
 interface ForceGraphCanvasProps {
@@ -79,6 +85,14 @@ function drawDiamond(
   context.closePath();
 }
 
+function browserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function ForceGraphCanvas({
   activeFilter,
   currentDate,
@@ -95,6 +109,8 @@ export function ForceGraphCanvas({
   const latestPointerRef = useRef<TooltipCoordinates | null>(null);
   const labelWidthsRef = useRef(new Map<string, number>());
   const draggedRef = useRef(false);
+  const layoutRef = useRef<GraphLayout>({});
+  const lastLayoutResetTokenRef = useRef(layoutResetToken);
   const [size, setSize] = useState<GraphSize>({ width: 0, height: 0 });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [tooltipCoordinates, setTooltipCoordinates] = useState<TooltipCoordinates>({ x: 0, y: 0 });
@@ -111,6 +127,22 @@ export function ForceGraphCanvas({
   const hoveredNode = hoveredId
     ? graphData.nodes.find(({ personId }) => personId === hoveredId)
     : undefined;
+
+  useLayoutEffect(() => {
+    const validIds = new Set(graphData.nodes.map(({ personId }) => personId));
+    const layout = readGraphLayout(browserStorage(), validIds);
+    layoutRef.current = layout;
+    hasFittedRef.current = false;
+
+    graphData.nodes.forEach((node) => {
+      const position = layout[node.personId];
+      if (!position) return;
+      node.x = position.x;
+      node.y = position.y;
+      node.fx = position.x;
+      node.fy = position.y;
+    });
+  }, [graphData]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -140,6 +172,19 @@ export function ForceGraphCanvas({
     forcesConfiguredRef.current = true;
   }, [size.height, size.width]);
 
+  useEffect(() => {
+    if (lastLayoutResetTokenRef.current === layoutResetToken) return;
+    lastLayoutResetTokenRef.current = layoutResetToken;
+    layoutRef.current = {};
+    clearGraphLayout(browserStorage());
+    graphData.nodes.forEach((node) => {
+      node.fx = undefined;
+      node.fy = undefined;
+    });
+    hasFittedRef.current = false;
+    graphRef.current?.d3ReheatSimulation();
+  }, [graphData.nodes, layoutResetToken]);
+
   const isNodeEmphasized = useCallback((node: GraphNode) => {
     if (node.personId === selectedId || node.personId === hoveredId) return true;
     const relationshipMatch = connectedIds === null || connectedIds.has(node.personId);
@@ -159,8 +204,6 @@ export function ForceGraphCanvas({
       || matchingIds.has(targetId);
     return relationshipMatch && filterMatch;
   }, [activeFilter, connectedIds, matchingIds]);
-
-  void layoutResetToken;
 
   const paintNode = useCallback((node: NodeObject<GraphNode>, context: CanvasRenderingContext2D, globalScale: number) => {
     if (node.x === undefined || node.y === undefined) return;
@@ -303,6 +346,19 @@ export function ForceGraphCanvas({
     if (latestPointer) updateHoverAt(latestPointer);
   }, [updateHoverAt]);
 
+  const handleNodeDragEnd = useCallback((node: NodeObject<GraphNode>) => {
+    if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
+    const x = node.x!;
+    const y = node.y!;
+    node.fx = x;
+    node.fy = y;
+    layoutRef.current = {
+      ...layoutRef.current,
+      [node.personId]: { x, y },
+    };
+    writeGraphLayout(browserStorage(), layoutRef.current);
+  }, []);
+
   const tooltipX = Math.min(
     Math.max(8, tooltipCoordinates.x + 14),
     Math.max(8, size.width - TOOLTIP_WIDTH - 8),
@@ -340,9 +396,9 @@ export function ForceGraphCanvas({
           cooldownTicks={120}
           d3AlphaDecay={0.035}
           d3VelocityDecay={0.34}
-          enableNodeDrag={false}
+          enableNodeDrag
           enablePanInteraction
-          enablePointerInteraction={false}
+          enablePointerInteraction
           enableZoomInteraction
           graphData={graphData}
           height={size.height}
@@ -364,6 +420,7 @@ export function ForceGraphCanvas({
           nodeCanvasObject={paintNode}
           nodeLabel={() => ""}
           onEngineStop={handleEngineStop}
+          onNodeDragEnd={handleNodeDragEnd}
           onZoom={handleZoom}
           onZoomEnd={handleZoomEnd}
           ref={graphRef}

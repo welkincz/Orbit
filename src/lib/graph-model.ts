@@ -12,6 +12,8 @@ export interface GraphNode {
   strategicRelevance?: StrategicRelevance;
   x?: number;
   y?: number;
+  fx?: number;
+  fy?: number;
   vx?: number;
   vy?: number;
 }
