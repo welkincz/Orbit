@@ -12,6 +12,7 @@ import { Separator } from "../ui/Separator";
 interface PersonDetailProps {
   person: Person;
   people: Person[];
+  detailMaxWidth?: number;
   detailWidth?: number;
   expanded?: boolean;
   onSelectPerson: (id: string) => void;
@@ -42,6 +43,7 @@ export function PersonDetail(props: PersonDetailProps) {
 function PersonDetailContent({
   person,
   people,
+  detailMaxWidth = 760,
   detailWidth = 368,
   expanded = false,
   onSelectPerson,
@@ -70,7 +72,7 @@ function PersonDetailContent({
     <div
       aria-label="Resize details"
       aria-orientation="vertical"
-      aria-valuemax={760}
+      aria-valuemax={Math.round(detailMaxWidth)}
       aria-valuemin={368}
       aria-valuenow={Math.round(detailWidth)}
       className="person-detail__resize-handle"

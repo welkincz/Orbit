@@ -18,7 +18,7 @@ interface NetworkWorkspaceProps {
 const DETAIL_WIDTH_STORAGE_KEY = "orbit.detail-width.v1";
 const DETAIL_WIDTH_CHANGE_EVENT = "orbit:detail-width-change";
 const DEFAULT_DETAIL_WIDTH = 368;
-const MAX_DETAIL_WIDTH = 760;
+const DEFAULT_VIEWPORT_WIDTH = 1280;
 
 interface DetailSize {
   expanded: boolean;
@@ -33,9 +33,11 @@ const DEFAULT_DETAIL_SIZE: DetailSize = {
 };
 const DEFAULT_DETAIL_SIZE_SNAPSHOT = JSON.stringify(DEFAULT_DETAIL_SIZE);
 let fallbackDetailSizeSnapshot = DEFAULT_DETAIL_SIZE_SNAPSHOT;
+let detailStorageUnavailable = false;
 
 function readDetailSizeSnapshot(): string {
   if (typeof window === "undefined") return DEFAULT_DETAIL_SIZE_SNAPSHOT;
+  if (detailStorageUnavailable) return fallbackDetailSizeSnapshot;
   try {
     return window.localStorage.getItem(DETAIL_WIDTH_STORAGE_KEY) ?? DEFAULT_DETAIL_SIZE_SNAPSHOT;
   } catch {
@@ -58,18 +60,30 @@ function writeDetailSizeSnapshot(next: DetailSize): void {
   fallbackDetailSizeSnapshot = snapshot;
   try {
     window.localStorage.setItem(DETAIL_WIDTH_STORAGE_KEY, snapshot);
+    detailStorageUnavailable = false;
   } catch {
+    detailStorageUnavailable = true;
     // The in-memory snapshot keeps resizing usable when storage is unavailable.
   }
   window.dispatchEvent(new Event(DETAIL_WIDTH_CHANGE_EVENT));
 }
 
+function readViewportWidth(): number {
+  return typeof window === "undefined" ? DEFAULT_VIEWPORT_WIDTH : window.innerWidth;
+}
+
+function subscribeToViewportWidth(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("resize", onStoreChange);
+  return () => window.removeEventListener("resize", onStoreChange);
+}
+
 function maxDetailWidth(workspaceWidth: number): number {
-  if (window.innerWidth >= 1280) {
-    return Math.max(DEFAULT_DETAIL_WIDTH, Math.min(MAX_DETAIL_WIDTH, workspaceWidth - 236 - 420));
+  if (workspaceWidth >= 1280) {
+    return Math.max(DEFAULT_DETAIL_WIDTH, workspaceWidth - 236 - 420);
   }
-  const reservedWidth = window.innerWidth <= 899 ? 16 : 236;
-  return Math.max(DEFAULT_DETAIL_WIDTH, Math.min(MAX_DETAIL_WIDTH, workspaceWidth - reservedWidth));
+  const reservedWidth = workspaceWidth <= 899 ? 16 : 236;
+  return Math.max(DEFAULT_DETAIL_WIDTH, workspaceWidth - reservedWidth);
 }
 
 function clampDetailWidth(width: number, workspaceWidth: number): number {
@@ -77,7 +91,7 @@ function clampDetailWidth(width: number, workspaceWidth: number): number {
 }
 
 function clampStoredDetailWidth(width: number): number {
-  return Math.round(Math.max(DEFAULT_DETAIL_WIDTH, Math.min(width, MAX_DETAIL_WIDTH)));
+  return Math.round(Math.max(DEFAULT_DETAIL_WIDTH, width));
 }
 
 function parseDetailSize(snapshot: string): DetailSize {
@@ -130,6 +144,13 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
     () => parseDetailSize(detailSizeSnapshot),
     [detailSizeSnapshot],
   );
+  const viewportWidth = useSyncExternalStore(
+    subscribeToViewportWidth,
+    readViewportWidth,
+    () => DEFAULT_VIEWPORT_WIDTH,
+  );
+  const effectiveDetailWidth = clampDetailWidth(detailSize.width, viewportWidth);
+  const effectiveMaxDetailWidth = maxDetailWidth(viewportWidth);
 
   const saveDetailSize = useCallback((next: DetailSize) => {
     writeDetailSizeSnapshot(next);
@@ -159,7 +180,7 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
     saveDetailSize({ expanded: true, restoreWidth: detailSize.width, width: expandedWidth });
   }, [detailSize, getWorkspaceWidth, saveDetailSize]);
 
-  const workspaceStyle = { "--detail-width": `${detailSize.width}px` } as CSSProperties;
+  const workspaceStyle = { "--detail-width": `${effectiveDetailWidth}px` } as CSSProperties;
 
   return (
     <main className="orbit-shell">
@@ -213,7 +234,8 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
               key="person-detail"
             >
               <PersonDetail
-                detailWidth={detailSize.width}
+                detailMaxWidth={effectiveMaxDetailWidth}
+                detailWidth={effectiveDetailWidth}
                 expanded={detailSize.expanded}
                 onClose={() => selectPerson(null)}
                 onResetWidth={resetDetailWidth}

@@ -1064,6 +1064,10 @@ input,
     border-radius: var(--radius-lg);
     overflow: hidden;
   }
+
+  .person-detail__resize-handle {
+    left: 0;
+  }
 }
 
 @media (max-width: 560px) {
@@ -1095,7 +1099,12 @@ input,
   }
 
   .orbit-detail-motion {
-    width: calc(100vw - 16px);
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    border: 0;
+    border-top: 1px solid var(--line-strong);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
   .person-detail__expand,
