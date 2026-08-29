@@ -6,6 +6,7 @@ import ForceGraph2D, {
   type LinkObject,
   type NodeObject,
 } from "react-force-graph-2d";
+import { useReducedMotion } from "motion/react";
 import {
   didPointerDrag,
   getGraphPointerTarget,
@@ -22,6 +23,8 @@ import {
   type GraphNode,
 } from "@/lib/graph-model";
 import {
+  FILTER_HALO_COLOR,
+  getGraphVisualState,
   getRelationshipFilterIds,
   type RelationshipFilter,
 } from "@/lib/graph-filters";
@@ -101,6 +104,7 @@ export function ForceGraphCanvas({
   selectedId,
   onSelect,
 }: ForceGraphCanvasProps) {
+  const reduceMotion = useReducedMotion() ?? false;
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<ForceGraphMethods<GraphNode, GraphLink> | undefined>(undefined);
   const forcesConfiguredRef = useRef(false);
@@ -188,9 +192,9 @@ export function ForceGraphCanvas({
   const isNodeEmphasized = useCallback((node: GraphNode) => {
     if (node.personId === selectedId || node.personId === hoveredId) return true;
     const relationshipMatch = connectedIds === null || connectedIds.has(node.personId);
-    const filterMatch = activeFilter === "all" || matchingIds.has(node.personId);
-    return relationshipMatch && filterMatch;
-  }, [activeFilter, connectedIds, hoveredId, matchingIds, selectedId]);
+    const visualState = getGraphVisualState(node.personId, activeFilter, matchingIds, activeId);
+    return relationshipMatch && visualState !== "dimmed";
+  }, [activeFilter, activeId, connectedIds, hoveredId, matchingIds, selectedId]);
 
   const isLinkEmphasized = useCallback((link: GraphLink) => {
     const sourceId = endpointId(link.source);
@@ -211,10 +215,25 @@ export function ForceGraphCanvas({
     const emphasized = isNodeEmphasized(node);
     const selected = node.personId === selectedId;
     const hovered = node.personId === hoveredId;
+    const visualState = getGraphVisualState(node.personId, activeFilter, matchingIds, activeId);
+    const filterMatch = activeFilter !== "all" && matchingIds.has(node.personId);
     const scale = Math.max(globalScale, 0.001);
     const radius = Math.min(9, Math.max(5, node.strength)) / scale;
+    const now = performance.now();
+    const phase = (now % 3200) / 3200;
+    const pulse = reduceMotion ? 0.5 : (Math.sin(phase * Math.PI * 2) + 1) / 2;
     context.save();
-    context.globalAlpha = emphasized ? 1 : 0.2;
+
+    if (filterMatch) {
+      context.beginPath();
+      context.arc(node.x, node.y, radius + (7 + pulse * 2) / scale, 0, Math.PI * 2);
+      context.strokeStyle = FILTER_HALO_COLOR[activeFilter];
+      context.globalAlpha = emphasized ? 0.42 + pulse * 0.18 : 0.2;
+      context.lineWidth = (1.3 + pulse * 0.45) / scale;
+      context.stroke();
+    }
+
+    context.globalAlpha = emphasized || visualState === "active" ? 1 : 0.14;
 
     if (node.strategicRelevance) {
       context.beginPath();
@@ -248,13 +267,22 @@ export function ForceGraphCanvas({
 
     const fontSize = 11 / scale;
     context.font = `${node.isSelf ? 700 : 590} ${fontSize}px ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-    labelWidthsRef.current.set(node.personId, context.measureText(node.name).width * scale);
-    context.fillStyle = emphasized ? "#1b1d1e" : "#929594";
-    context.textAlign = "left";
-    context.textBaseline = "middle";
-    context.fillText(node.name, node.x + radius + 7 / scale, node.y);
+    const showLabel = node.isSelf
+      || selected
+      || hovered
+      || visualState === "matching"
+      || (activeFilter === "all" ? globalScale >= 0.65 : globalScale >= 1.25);
+    if (showLabel) {
+      labelWidthsRef.current.set(node.personId, context.measureText(node.name).width * scale);
+      context.fillStyle = emphasized ? "#1b1d1e" : "#929594";
+      context.textAlign = "left";
+      context.textBaseline = "middle";
+      context.fillText(node.name, node.x + radius + 7 / scale, node.y);
+    } else {
+      labelWidthsRef.current.set(node.personId, 0);
+    }
     context.restore();
-  }, [hoveredId, isNodeEmphasized, selectedId]);
+  }, [activeFilter, activeId, hoveredId, isNodeEmphasized, matchingIds, reduceMotion, selectedId]);
 
   const handleEngineStop = useCallback(() => {
     if (hasFittedRef.current) return;
@@ -391,7 +419,7 @@ export function ForceGraphCanvas({
     >
       {size.width > 0 && size.height > 0 && (
         <ForceGraph2D<GraphNode, GraphLink>
-          autoPauseRedraw
+          autoPauseRedraw={activeFilter === "all" || reduceMotion}
           backgroundColor="#f4f3ef"
           cooldownTicks={120}
           d3AlphaDecay={0.035}
@@ -404,13 +432,14 @@ export function ForceGraphCanvas({
           height={size.height}
           linkColor={(link: LinkObject<GraphNode, GraphLink>) => {
             const emphasized = isLinkEmphasized(link);
-            if (link.kind === "introduced_by") return emphasized ? "rgba(116, 132, 104, 0.72)" : "rgba(116, 132, 104, 0.12)";
-            if (activeId) return emphasized ? "rgba(49, 95, 88, 0.62)" : "rgba(107, 110, 112, 0.1)";
+            if (link.kind === "introduced_by") return emphasized ? "rgba(116, 132, 104, 0.72)" : "rgba(116, 132, 104, 0.07)";
+            if (activeId) return emphasized ? "rgba(49, 95, 88, 0.62)" : "rgba(107, 110, 112, 0.06)";
+            if (activeFilter !== "all") return emphasized ? "rgba(49, 95, 88, 0.5)" : "rgba(107, 110, 112, 0.07)";
             return "rgba(107, 110, 112, 0.52)";
           }}
           linkDirectionalArrowColor={(link: LinkObject<GraphNode, GraphLink>) => isLinkEmphasized(link)
             ? "rgba(116, 132, 104, 0.82)"
-            : "rgba(116, 132, 104, 0.14)"}
+            : "rgba(116, 132, 104, 0.07)"}
           linkDirectionalArrowLength={(link: LinkObject<GraphNode, GraphLink>) => link.directed ? 6 : 0}
           linkDirectionalArrowRelPos={0.72}
           linkLineDash={(link: LinkObject<GraphNode, GraphLink>) => link.kind === "introduced_by" ? [5, 4] : null}

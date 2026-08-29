@@ -16,6 +16,26 @@ export const RELATIONSHIP_FILTERS: ReadonlyArray<{ key: RelationshipFilter; labe
   { key: "targets", label: "Targets" },
 ];
 
+export type GraphVisualState = "neutral" | "matching" | "dimmed" | "active";
+
+export const FILTER_HALO_COLOR: Record<Exclude<RelationshipFilter, "all">, string> = {
+  "inner-circle": "#b08a47",
+  reconnect: "#b65f43",
+  recent: "#748468",
+  targets: "#6c648f",
+};
+
+export function getGraphVisualState(
+  personId: string,
+  filter: RelationshipFilter,
+  matchingIds: ReadonlySet<string>,
+  activeId: string | null,
+): GraphVisualState {
+  if (personId === activeId) return "active";
+  if (filter === "all") return "neutral";
+  return matchingIds.has(personId) ? "matching" : "dimmed";
+}
+
 export function getRelationshipFilterIds(
   people: Person[],
   currentDate: ISODate,
