@@ -15,6 +15,13 @@ export interface PersonSections {
   followUp: string;
 }
 
+export interface ConversationPrep {
+  theirWorld: string;
+  whatTheyCareAbout: string;
+  remember: string;
+  nextConversation: string;
+}
+
 export interface PeopleDiagnostic {
   level: "warning";
   code: "inner-circle-size" | "last-contact-mismatch";
@@ -41,6 +48,7 @@ export interface Person {
   tags: string[];
   interactions: Interaction[];
   sections: PersonSections;
+  conversationPrep: ConversationPrep;
   diagnostics: PeopleDiagnostic[];
   sourcePath: string;
   sourceRelativePath: string;

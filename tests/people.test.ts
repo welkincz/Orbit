@@ -12,6 +12,12 @@ function person(overrides: Partial<Person> = {}): Person {
     tags: [],
     interactions: [],
     sections: { whyTheyMatter: "", context: "", followUp: "" },
+    conversationPrep: {
+      theirWorld: "",
+      whatTheyCareAbout: "",
+      remember: "",
+      nextConversation: "",
+    },
     diagnostics: [],
     sourcePath: "/data/people/me.md",
     sourceRelativePath: "me.md",

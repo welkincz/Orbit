@@ -24,6 +24,25 @@ Maya gives candid platform leadership advice.
 
 Met through a cross-team architecture forum.
 
+## Conversation Prep
+
+### Their world
+
+Maya's team is clarifying platform ownership.
+
+### What they care about
+
+- Clear decision rights
+- Practical operating models
+
+### Remember
+
+Charlie promised to send the platform RFC article.
+
+### Next conversation
+
+- Ask how the ownership discussion landed
+
 ## Interactions
 
 ### 2026-08-18 — Coffee chat

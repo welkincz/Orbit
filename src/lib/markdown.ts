@@ -8,6 +8,7 @@ import { unified } from "unified";
 import { isISODate, todayISO } from "@/lib/dates";
 import { normalizeFrontmatter, PeopleDataError, validatePeopleCollection } from "@/lib/people";
 import type {
+  ConversationPrep,
   Interaction,
   ISODate,
   PeopleDataset,
@@ -31,7 +32,15 @@ interface ParsePersonOptions {
 export interface ExtractedMarkdownSections {
   interactions: Interaction[];
   sections: PersonSections;
+  conversationPrep: ConversationPrep;
 }
+
+export const EMPTY_CONVERSATION_PREP = {
+  theirWorld: "",
+  whatTheyCareAbout: "",
+  remember: "",
+  nextConversation: "",
+} satisfies ConversationPrep;
 
 function isHeading(node: RootContent, depth: 2 | 3): node is Heading {
   return node.type === "heading" && node.depth === depth;
@@ -138,6 +147,25 @@ function markdownWithoutPersonFollowUps(source: string, nodes: RootContent[]): s
   return chunks.join("\n\n");
 }
 
+function extractConversationPrep(source: string, nodes: RootContent[]): ConversationPrep {
+  const result = { ...EMPTY_CONVERSATION_PREP };
+  const keys: Record<string, keyof ConversationPrep> = {
+    "their world": "theirWorld",
+    "what they care about": "whatTheyCareAbout",
+    remember: "remember",
+    "next conversation": "nextConversation",
+  };
+
+  nodes.forEach((node, index) => {
+    if (!isHeading(node, 3)) return;
+    const key = keys[toString(node).trim().toLowerCase()];
+    if (!key) return;
+    result[key] = originalMarkdown(source, nodes.slice(index + 1, blockEnd(nodes, index)));
+  });
+
+  return result;
+}
+
 export function extractMarkdownSections(markdown: string): ExtractedMarkdownSections {
   const root = unified().use(remarkParse).parse(markdown);
   const children = root.children;
@@ -147,6 +175,7 @@ export function extractMarkdownSections(markdown: string): ExtractedMarkdownSect
     followUp: personFollowUps(markdown, children),
   };
   let interactions: Interaction[] = [];
+  let conversationPrep = { ...EMPTY_CONVERSATION_PREP };
 
   children.forEach((node, index) => {
     if (!isHeading(node, 2)) return;
@@ -159,10 +188,12 @@ export function extractMarkdownSections(markdown: string): ExtractedMarkdownSect
       sections.context = markdownWithoutPersonFollowUps(markdown, nodes);
     } else if (heading === "interactions") {
       interactions = interactionHistory(markdown, nodes);
+    } else if (heading === "conversation prep") {
+      conversationPrep = extractConversationPrep(markdown, nodes);
     }
   });
 
-  return { interactions, sections };
+  return { conversationPrep, interactions, sections };
 }
 
 function withSourcePath(error: PeopleDataError, sourceRelativePath: string): PeopleDataError {
@@ -237,6 +268,7 @@ export function parsePersonMarkdown(source: string, options: ParsePersonOptions)
   return {
     ...frontmatter,
     effectiveLastContact,
+    conversationPrep: extracted.conversationPrep,
     interactions: extracted.interactions,
     sections: extracted.sections,
     diagnostics,

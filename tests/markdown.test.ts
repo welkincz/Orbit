@@ -96,6 +96,12 @@ Keep this separate context note.
 `;
 
       expect(extractMarkdownSections(markdown)).toEqual({
+        conversationPrep: {
+          theirWorld: "",
+          whatTheyCareAbout: "",
+          remember: "",
+          nextConversation: "",
+        },
         interactions: [],
         sections: {
           whyTheyMatter: "",
@@ -118,6 +124,51 @@ Keep this separate context note.
       "Discussed:\n\n- Platform ownership\n- Hiring signals",
       "Discussed operating models.",
     ]);
+  });
+
+  it("extracts recognized Conversation Prep blocks and preserves Markdown", () => {
+    const person = parsePersonMarkdown(validSource, options);
+
+    expect(person.conversationPrep).toEqual({
+      theirWorld: "Maya's team is clarifying platform ownership.",
+      whatTheyCareAbout: "- Clear decision rights\n- Practical operating models",
+      remember: "Charlie promised to send the platform RFC article.",
+      nextConversation: "- Ask how the ownership discussion landed",
+    });
+  });
+
+  it("keeps Conversation Prep within its H2 and recognized H3 boundaries", () => {
+    const markdown = `## Conversation Prep
+
+### Their world
+Known context.
+
+### Notes
+Unrecognized note.
+
+### Next conversation
+Ask a direct question.
+
+## Context
+Outside prep.
+`;
+
+    expect(extractMarkdownSections(markdown).conversationPrep).toEqual({
+      theirWorld: "Known context.",
+      whatTheyCareAbout: "",
+      remember: "",
+      nextConversation: "Ask a direct question.",
+    });
+  });
+
+  it("returns empty Conversation Prep fields when the section is absent or empty", () => {
+    expect(extractMarkdownSections("## Context\n\nKnown.").conversationPrep).toEqual({
+      theirWorld: "",
+      whatTheyCareAbout: "",
+      remember: "",
+      nextConversation: "",
+    });
+    expect(extractMarkdownSections("## Conversation Prep\n\n### Remember\n").conversationPrep.remember).toBe("");
   });
 
   it("uses frontmatter last_contact and warns when an interaction is newer", () => {
