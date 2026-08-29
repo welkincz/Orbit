@@ -25,6 +25,12 @@ const maya = makePerson({
     context: "Met through a cross-team architecture forum.",
     followUp: "Send the platform RFC article",
   },
+  conversationPrep: {
+    theirWorld: "Maya's team is clarifying platform ownership.",
+    whatTheyCareAbout: "- Clear decision rights\n- Practical operating models",
+    remember: "Charlie promised to send the platform RFC article.",
+    nextConversation: "- Ask how the ownership discussion landed",
+  },
   sourcePath: "/Users/Charlie/Orbit/data/people/maya.md",
 });
 
@@ -52,6 +58,34 @@ describe("PersonDetail", () => {
       "vscode://file/Users/Charlie/Orbit/data/people/maya.md",
     );
     expect(screen.getByRole("button", { name: "Copy path" })).toBeVisible();
+  });
+
+  it("puts actionable Conversation Prep before interaction history", async () => {
+    const user = userEvent.setup();
+    render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+
+    const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
+    expect(headings.indexOf("Next conversation")).toBeLessThan(headings.indexOf("Latest interaction"));
+    expect(screen.getByText("Ask how the ownership discussion landed")).toBeVisible();
+    expect(screen.getByText("Maya's team is clarifying platform ownership.")).toBeVisible();
+    await user.click(screen.getByText("What they care about"));
+    expect(screen.getByText("Clear decision rights")).toBeVisible();
+    await user.click(screen.getByText("Remember"));
+    expect(screen.getByText("Charlie promised to send the platform RFC article.")).toBeVisible();
+  });
+
+  it("omits empty prep blocks and copies the template when all prep is empty", async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const empty = makePerson({ id: "empty", name: "Empty Prep" });
+
+    render(<PersonDetail person={empty} people={[empty]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    expect(screen.queryByRole("heading", { name: "Their world" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Copy Conversation Prep template" }));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("## Conversation Prep"));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("### Next conversation"));
+    expect(screen.getByText("Template copied.")).toBeVisible();
   });
 
   it("closes and follows the introducer through the shared selection callback", async () => {

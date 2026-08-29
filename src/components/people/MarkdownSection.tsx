@@ -5,6 +5,10 @@ interface MarkdownSectionProps {
   markdown: string;
 }
 
+interface MarkdownContentProps {
+  markdown: string;
+}
+
 const markdownComponents = {
   p: ({ children }: { children?: React.ReactNode }) => (
     <p className="detail-prose">{children}</p>
@@ -30,6 +34,20 @@ const markdownComponents = {
 
 const allowedElements = ["p", "ul", "ol", "li", "strong", "em", "code", "a"];
 
+export function MarkdownContent({ markdown }: MarkdownContentProps) {
+  if (!markdown.trim()) return null;
+
+  return (
+    <ReactMarkdown
+      allowedElements={allowedElements}
+      components={markdownComponents}
+      unwrapDisallowed
+    >
+      {markdown}
+    </ReactMarkdown>
+  );
+}
+
 export function MarkdownSection({ title, markdown }: MarkdownSectionProps) {
   if (!markdown.trim()) return null;
 
@@ -38,13 +56,7 @@ export function MarkdownSection({ title, markdown }: MarkdownSectionProps) {
       <h3 className="detail-section__heading" id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}>
         {title}
       </h3>
-      <ReactMarkdown
-        allowedElements={allowedElements}
-        components={markdownComponents}
-        unwrapDisallowed
-      >
-        {markdown}
-      </ReactMarkdown>
+      <MarkdownContent markdown={markdown} />
     </section>
   );
 }

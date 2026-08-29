@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Copy, FilePenLine, X } from "lucide-react";
 import { toVscodeFileHref } from "@/lib/local-files";
 import type { ISODate, Person } from "@/types/person";
+import { ConversationPrepPanel } from "./ConversationPrep";
 import { MarkdownSection } from "./MarkdownSection";
 import { RelationshipStrength } from "./RelationshipStrength";
 import { Separator } from "../ui/Separator";
@@ -108,6 +109,7 @@ function PersonDetailContent({ person, people, onSelectPerson, onClose }: Person
       <div className="person-detail__sections">
         <MarkdownSection markdown={person.sections.whyTheyMatter} title="Why they matter" />
         <MarkdownSection markdown={person.sections.context} title="Context" />
+        <ConversationPrepPanel prep={person.conversationPrep} />
         {latestInteraction && (
           <section aria-labelledby="latest-interaction-heading" className="detail-section">
             <h3 className="detail-section__heading" id="latest-interaction-heading">Latest interaction</h3>
