@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Copy, FilePenLine, X } from "lucide-react";
+import { useRef, useState } from "react";
+import { Copy, FilePenLine, Maximize2, Minimize2, X } from "lucide-react";
 import { toVscodeFileHref } from "@/lib/local-files";
 import type { ISODate, Person } from "@/types/person";
 import { ConversationPrepPanel } from "./ConversationPrep";
@@ -12,8 +12,13 @@ import { Separator } from "../ui/Separator";
 interface PersonDetailProps {
   person: Person;
   people: Person[];
+  detailWidth?: number;
+  expanded?: boolean;
   onSelectPerson: (id: string) => void;
   onClose: () => void;
+  onResetWidth?: () => void;
+  onResize?: (width: number) => void;
+  onToggleExpanded?: () => void;
 }
 
 function formatDate(date: ISODate): string {
@@ -34,8 +39,19 @@ export function PersonDetail(props: PersonDetailProps) {
   return <PersonDetailContent key={props.person.id} {...props} />;
 }
 
-function PersonDetailContent({ person, people, onSelectPerson, onClose }: PersonDetailProps) {
+function PersonDetailContent({
+  person,
+  people,
+  detailWidth = 368,
+  expanded = false,
+  onSelectPerson,
+  onClose,
+  onResetWidth,
+  onResize,
+  onToggleExpanded,
+}: PersonDetailProps) {
   const [copyStatus, setCopyStatus] = useState("");
+  const resizeStart = useRef<{ pointerId: number; width: number; x: number } | null>(null);
   const introducer = person.introducedBy ? people.find(({ id }) => id === person.introducedBy) : undefined;
   const roleAndTeam = [person.role, person.team].filter(Boolean).join(" · ");
   const interactionCount = person.interactions.length;
@@ -50,7 +66,46 @@ function PersonDetailContent({ person, people, onSelectPerson, onClose }: Person
     }
   }
 
-  return (
+  return <>
+    <div
+      aria-label="Resize details"
+      aria-orientation="vertical"
+      aria-valuemax={760}
+      aria-valuemin={368}
+      aria-valuenow={Math.round(detailWidth)}
+      className="person-detail__resize-handle"
+      onDoubleClick={onResetWidth}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          onResize?.(detailWidth + 24);
+        } else if (event.key === "ArrowRight") {
+          event.preventDefault();
+          onResize?.(detailWidth - 24);
+        } else if (event.key === "Home") {
+          event.preventDefault();
+          onResetWidth?.();
+        }
+      }}
+      onPointerDown={(event) => {
+        resizeStart.current = { pointerId: event.pointerId, width: detailWidth, x: event.clientX };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        const start = resizeStart.current;
+        if (!start || start.pointerId !== event.pointerId) return;
+        onResize?.(start.width + start.x - event.clientX);
+      }}
+      onPointerUp={(event) => {
+        if (resizeStart.current?.pointerId !== event.pointerId) return;
+        resizeStart.current = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }
+      }}
+      role="separator"
+      tabIndex={0}
+    />
     <aside aria-label={`${person.name} details`} className="person-detail">
       <div className="person-detail__inner">
       <div className="person-detail__header">
@@ -59,14 +114,26 @@ function PersonDetailContent({ person, people, onSelectPerson, onClose }: Person
           {roleAndTeam && <p className="person-detail__role">{roleAndTeam}</p>}
           {person.company && <p className="person-detail__company">{person.company}</p>}
         </div>
-        <button
-          aria-label="Close details"
-          className="icon-button"
-          onClick={onClose}
-          type="button"
-        >
-          <X aria-hidden="true" className="size-4" strokeWidth={1.75} />
-        </button>
+        <div className="person-detail__header-actions">
+          <button
+            aria-label={expanded ? "Restore details" : "Expand details"}
+            className="icon-button person-detail__expand"
+            onClick={onToggleExpanded}
+            type="button"
+          >
+            {expanded
+              ? <Minimize2 aria-hidden="true" className="size-4" strokeWidth={1.75} />
+              : <Maximize2 aria-hidden="true" className="size-4" strokeWidth={1.75} />}
+          </button>
+          <button
+            aria-label="Close details"
+            className="icon-button"
+            onClick={onClose}
+            type="button"
+          >
+            <X aria-hidden="true" className="size-4" strokeWidth={1.75} />
+          </button>
+        </div>
       </div>
 
       <dl className="person-detail__facts">
@@ -136,5 +203,5 @@ function PersonDetailContent({ person, people, onSelectPerson, onClose }: Person
       <p className="person-detail__path" title={person.sourcePath}>{person.sourceRelativePath}</p>
       </div>
     </aside>
-  );
+  </>;
 }

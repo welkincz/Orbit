@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MarkdownSection } from "@/components/people/MarkdownSection";
@@ -99,6 +99,67 @@ describe("PersonDetail", () => {
     expect(onSelectPerson).toHaveBeenCalledWith("elise");
     await user.click(screen.getByRole("button", { name: "Close details" }));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("offers an accessible expand and restore action", async () => {
+    const user = userEvent.setup();
+    const onToggleExpanded = vi.fn();
+    const { rerender } = render(
+      <PersonDetail
+        expanded={false}
+        person={maya}
+        people={[maya, introducer]}
+        onSelectPerson={vi.fn()}
+        onClose={vi.fn()}
+        onToggleExpanded={onToggleExpanded}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Expand details" }));
+    expect(onToggleExpanded).toHaveBeenCalledOnce();
+
+    rerender(
+      <PersonDetail
+        expanded
+        person={maya}
+        people={[maya, introducer]}
+        onSelectPerson={vi.fn()}
+        onClose={vi.fn()}
+        onToggleExpanded={onToggleExpanded}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Restore details" })).toBeVisible();
+  });
+
+  it("resizes from the left edge with pointer and keyboard controls", () => {
+    const onResize = vi.fn();
+    const onResetWidth = vi.fn();
+    render(
+      <PersonDetail
+        detailWidth={480}
+        person={maya}
+        people={[maya, introducer]}
+        onSelectPerson={vi.fn()}
+        onClose={vi.fn()}
+        onResetWidth={onResetWidth}
+        onResize={onResize}
+      />,
+    );
+
+    const handle = screen.getByRole("separator", { name: "Resize details" });
+    expect(handle).toHaveAttribute("aria-valuenow", "480");
+    fireEvent.pointerDown(handle, { clientX: 600, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 520, pointerId: 1 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+    expect(onResize).toHaveBeenLastCalledWith(560);
+
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(onResize).toHaveBeenLastCalledWith(504);
+    fireEvent.keyDown(handle, { key: "ArrowRight" });
+    expect(onResize).toHaveBeenLastCalledWith(456);
+    fireEvent.keyDown(handle, { key: "Home" });
+    fireEvent.doubleClick(handle);
+    expect(onResetWidth).toHaveBeenCalledTimes(2);
   });
 
   it("copies the absolute source path and announces success", async () => {

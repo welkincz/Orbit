@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { NetworkGraph } from "@/components/network/NetworkGraph";
 import { RefreshPeopleButton } from "@/components/network/RefreshPeopleButton";
@@ -15,10 +15,90 @@ interface NetworkWorkspaceProps {
   currentDate: ISODate;
 }
 
+const DETAIL_WIDTH_STORAGE_KEY = "orbit.detail-width.v1";
+const DETAIL_WIDTH_CHANGE_EVENT = "orbit:detail-width-change";
+const DEFAULT_DETAIL_WIDTH = 368;
+const MAX_DETAIL_WIDTH = 760;
+
+interface DetailSize {
+  expanded: boolean;
+  restoreWidth: number;
+  width: number;
+}
+
+const DEFAULT_DETAIL_SIZE: DetailSize = {
+  expanded: false,
+  restoreWidth: DEFAULT_DETAIL_WIDTH,
+  width: DEFAULT_DETAIL_WIDTH,
+};
+const DEFAULT_DETAIL_SIZE_SNAPSHOT = JSON.stringify(DEFAULT_DETAIL_SIZE);
+let fallbackDetailSizeSnapshot = DEFAULT_DETAIL_SIZE_SNAPSHOT;
+
+function readDetailSizeSnapshot(): string {
+  if (typeof window === "undefined") return DEFAULT_DETAIL_SIZE_SNAPSHOT;
+  try {
+    return window.localStorage.getItem(DETAIL_WIDTH_STORAGE_KEY) ?? DEFAULT_DETAIL_SIZE_SNAPSHOT;
+  } catch {
+    return fallbackDetailSizeSnapshot;
+  }
+}
+
+function subscribeToDetailSize(onStoreChange: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(DETAIL_WIDTH_CHANGE_EVENT, onStoreChange);
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(DETAIL_WIDTH_CHANGE_EVENT, onStoreChange);
+  };
+}
+
+function writeDetailSizeSnapshot(next: DetailSize): void {
+  const snapshot = JSON.stringify(next);
+  fallbackDetailSizeSnapshot = snapshot;
+  try {
+    window.localStorage.setItem(DETAIL_WIDTH_STORAGE_KEY, snapshot);
+  } catch {
+    // The in-memory snapshot keeps resizing usable when storage is unavailable.
+  }
+  window.dispatchEvent(new Event(DETAIL_WIDTH_CHANGE_EVENT));
+}
+
+function maxDetailWidth(workspaceWidth: number): number {
+  if (window.innerWidth >= 1280) {
+    return Math.max(DEFAULT_DETAIL_WIDTH, Math.min(MAX_DETAIL_WIDTH, workspaceWidth - 236 - 420));
+  }
+  const reservedWidth = window.innerWidth <= 899 ? 16 : 236;
+  return Math.max(DEFAULT_DETAIL_WIDTH, Math.min(MAX_DETAIL_WIDTH, workspaceWidth - reservedWidth));
+}
+
+function clampDetailWidth(width: number, workspaceWidth: number): number {
+  return Math.round(Math.max(DEFAULT_DETAIL_WIDTH, Math.min(width, maxDetailWidth(workspaceWidth))));
+}
+
+function clampStoredDetailWidth(width: number): number {
+  return Math.round(Math.max(DEFAULT_DETAIL_WIDTH, Math.min(width, MAX_DETAIL_WIDTH)));
+}
+
+function parseDetailSize(snapshot: string): DetailSize {
+  try {
+    const saved = JSON.parse(snapshot) as Partial<DetailSize>;
+    if (!Number.isFinite(saved.width) || !Number.isFinite(saved.restoreWidth)) return DEFAULT_DETAIL_SIZE;
+    return {
+      expanded: saved.expanded === true,
+      restoreWidth: clampStoredDetailWidth(saved.restoreWidth!),
+      width: clampStoredDetailWidth(saved.width!),
+    };
+  } catch {
+    return DEFAULT_DETAIL_SIZE;
+  }
+}
+
 export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspaceProps) {
   const loadedPeopleCount = initialDataset.people.length;
   const [selection, setSelection] = useState({ dataset: initialDataset, selectedId: null as string | null });
   const [activeFilter, setActiveFilter] = useState<RelationshipFilter>("all");
+  const workspaceRef = useRef<HTMLDivElement>(null);
   const selectedId = selection.dataset === initialDataset
     || initialDataset.people.some((person) => person.id === selection.selectedId)
     ? selection.selectedId
@@ -36,6 +116,51 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
     [initialDataset.people, selectedId],
   );
 
+  const getWorkspaceWidth = useCallback(
+    () => workspaceRef.current?.clientWidth || window.innerWidth,
+    [],
+  );
+
+  const detailSizeSnapshot = useSyncExternalStore(
+    subscribeToDetailSize,
+    readDetailSizeSnapshot,
+    () => DEFAULT_DETAIL_SIZE_SNAPSHOT,
+  );
+  const detailSize = useMemo(
+    () => parseDetailSize(detailSizeSnapshot),
+    [detailSizeSnapshot],
+  );
+
+  const saveDetailSize = useCallback((next: DetailSize) => {
+    writeDetailSizeSnapshot(next);
+  }, []);
+
+  const resizeDetail = useCallback((width: number) => {
+    const nextWidth = clampDetailWidth(width, getWorkspaceWidth());
+    saveDetailSize({ expanded: false, restoreWidth: nextWidth, width: nextWidth });
+  }, [getWorkspaceWidth, saveDetailSize]);
+
+  const resetDetailWidth = useCallback(() => {
+    saveDetailSize({
+      expanded: false,
+      restoreWidth: DEFAULT_DETAIL_WIDTH,
+      width: DEFAULT_DETAIL_WIDTH,
+    });
+  }, [saveDetailSize]);
+
+  const toggleDetailExpanded = useCallback(() => {
+    const workspaceWidth = getWorkspaceWidth();
+    if (detailSize.expanded) {
+      const restoredWidth = clampDetailWidth(detailSize.restoreWidth, workspaceWidth);
+      saveDetailSize({ expanded: false, restoreWidth: restoredWidth, width: restoredWidth });
+      return;
+    }
+    const expandedWidth = clampDetailWidth(workspaceWidth / 2, workspaceWidth);
+    saveDetailSize({ expanded: true, restoreWidth: detailSize.width, width: expandedWidth });
+  }, [detailSize, getWorkspaceWidth, saveDetailSize]);
+
+  const workspaceStyle = { "--detail-width": `${detailSize.width}px` } as CSSProperties;
+
   return (
     <main className="orbit-shell">
       <header className="orbit-header">
@@ -51,7 +176,11 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
         </div>
       </header>
 
-      <div className={`orbit-workspace${selectedPerson ? " has-detail" : ""}`}>
+      <div
+        className={`orbit-workspace${selectedPerson ? " has-detail" : ""}${detailSize.expanded ? " has-detail-expanded" : ""}`}
+        ref={workspaceRef}
+        style={workspaceStyle}
+      >
         <RelationshipSidebar
           currentDate={currentDate}
           dataset={initialDataset}
@@ -84,8 +213,13 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
               key="person-detail"
             >
               <PersonDetail
+                detailWidth={detailSize.width}
+                expanded={detailSize.expanded}
                 onClose={() => selectPerson(null)}
+                onResetWidth={resetDetailWidth}
+                onResize={resizeDetail}
                 onSelectPerson={selectPerson}
+                onToggleExpanded={toggleDetailExpanded}
                 people={initialDataset.people}
                 person={selectedPerson}
               />

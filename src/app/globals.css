@@ -437,9 +437,39 @@ input,
 }
 
 .orbit-detail-motion {
+  position: relative;
   min-width: 0;
   min-height: 0;
   background: var(--panel);
+}
+
+.person-detail__resize-handle {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  left: -5px;
+  width: 10px;
+  cursor: col-resize;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+}
+
+.person-detail__resize-handle::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 4px;
+  width: 2px;
+  background: transparent;
+  content: "";
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
+.person-detail__resize-handle:hover::after,
+.person-detail__resize-handle:focus-visible::after {
+  background: var(--selected);
 }
 
 .person-detail {
@@ -461,6 +491,12 @@ input,
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.person-detail__header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 2px;
 }
 
 .person-detail__name {
@@ -953,7 +989,7 @@ input,
 
 @media (min-width: 1280px) {
   .orbit-workspace.has-detail {
-    grid-template-columns: 236px minmax(0, 1fr) 368px;
+    grid-template-columns: 236px minmax(420px, 1fr) var(--detail-width, 368px);
   }
 
   .orbit-detail-motion {
@@ -968,7 +1004,7 @@ input,
     top: var(--header-height);
     right: 0;
     bottom: 0;
-    width: min(368px, calc(100vw - 236px));
+    width: min(var(--detail-width, 368px), calc(100vw - 236px));
     border-left: 1px solid var(--line-strong);
     box-shadow: var(--overlay-shadow);
   }
@@ -1023,7 +1059,7 @@ input,
     top: calc(var(--header-height) + 210px);
     right: 8px;
     bottom: 8px;
-    width: min(368px, calc(100vw - 16px));
+    width: min(var(--detail-width, 368px), calc(100vw - 16px));
     border: 1px solid var(--line-strong);
     border-radius: var(--radius-lg);
     overflow: hidden;
@@ -1056,6 +1092,15 @@ input,
 
   .person-detail__inner {
     padding: 17px 18px 24px;
+  }
+
+  .orbit-detail-motion {
+    width: calc(100vw - 16px);
+  }
+
+  .person-detail__expand,
+  .person-detail__resize-handle {
+    display: none;
   }
 }
 
