@@ -21,10 +21,17 @@ import {
   type GraphLink,
   type GraphNode,
 } from "@/lib/graph-model";
-import type { PeopleDataset, StrategicRelevance } from "@/types/person";
+import {
+  getRelationshipFilterIds,
+  type RelationshipFilter,
+} from "@/lib/graph-filters";
+import type { ISODate, PeopleDataset, StrategicRelevance } from "@/types/person";
 
 interface ForceGraphCanvasProps {
+  activeFilter: RelationshipFilter;
+  currentDate: ISODate;
   dataset: PeopleDataset;
+  layoutResetToken: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }
@@ -72,7 +79,14 @@ function drawDiamond(
   context.closePath();
 }
 
-export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCanvasProps) {
+export function ForceGraphCanvas({
+  activeFilter,
+  currentDate,
+  dataset,
+  layoutResetToken,
+  selectedId,
+  onSelect,
+}: ForceGraphCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<ForceGraphMethods<GraphNode, GraphLink> | undefined>(undefined);
   const forcesConfiguredRef = useRef(false);
@@ -85,6 +99,10 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [tooltipCoordinates, setTooltipCoordinates] = useState<TooltipCoordinates>({ x: 0, y: 0 });
   const graphData = useMemo(() => buildGraphModel(dataset), [dataset]);
+  const matchingIds = useMemo(
+    () => getRelationshipFilterIds(dataset.people, currentDate, activeFilter),
+    [activeFilter, currentDate, dataset.people],
+  );
   const activeId = selectedId ?? hoveredId;
   const connectedIds = useMemo(
     () => activeId ? getConnectedIds(graphData.links, activeId) : null,
@@ -123,18 +141,26 @@ export function ForceGraphCanvas({ dataset, selectedId, onSelect }: ForceGraphCa
   }, [size.height, size.width]);
 
   const isNodeEmphasized = useCallback((node: GraphNode) => {
-    return connectedIds === null || connectedIds.has(node.personId);
-  }, [connectedIds]);
+    if (node.personId === selectedId || node.personId === hoveredId) return true;
+    const relationshipMatch = connectedIds === null || connectedIds.has(node.personId);
+    const filterMatch = activeFilter === "all" || matchingIds.has(node.personId);
+    return relationshipMatch && filterMatch;
+  }, [activeFilter, connectedIds, hoveredId, matchingIds, selectedId]);
 
   const isLinkEmphasized = useCallback((link: GraphLink) => {
-    if (connectedIds === null) return true;
     const sourceId = endpointId(link.source);
     const targetId = endpointId(link.target);
-    return sourceId !== undefined
-      && targetId !== undefined
-      && connectedIds.has(sourceId)
-      && connectedIds.has(targetId);
-  }, [connectedIds]);
+    if (sourceId === undefined || targetId === undefined) return false;
+    const relationshipMatch = connectedIds === null || (
+      connectedIds.has(sourceId) && connectedIds.has(targetId)
+    );
+    const filterMatch = activeFilter === "all"
+      || matchingIds.has(sourceId)
+      || matchingIds.has(targetId);
+    return relationshipMatch && filterMatch;
+  }, [activeFilter, connectedIds, matchingIds]);
+
+  void layoutResetToken;
 
   const paintNode = useCallback((node: NodeObject<GraphNode>, context: CanvasRenderingContext2D, globalScale: number) => {
     if (node.x === undefined || node.y === undefined) return;

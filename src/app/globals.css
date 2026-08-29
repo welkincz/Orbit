@@ -330,6 +330,78 @@ input,
   overflow: hidden;
 }
 
+.graph-controls {
+  position: absolute;
+  z-index: 6;
+  top: 10px;
+  right: 13px;
+  display: flex;
+  max-width: calc(100% - 155px);
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.graph-filter-bar {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: rgba(250, 249, 246, 0.94);
+}
+
+.graph-filter-button,
+.graph-reset-button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.graph-filter-button {
+  border-right: 1px solid var(--line);
+  padding: 8px 9px;
+}
+
+.graph-filter-button:last-child {
+  border-right: 0;
+}
+
+.graph-filter-button:hover,
+.graph-reset-button:hover {
+  background: var(--sidebar);
+  color: var(--ink);
+}
+
+.graph-filter-button[aria-pressed="true"] {
+  background: var(--selected);
+  color: var(--panel);
+}
+
+.graph-reset-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: rgba(250, 249, 246, 0.94);
+  padding: 7px 9px;
+}
+
+.graph-control-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .graph-tooltip {
   pointer-events: none;
   position: absolute;

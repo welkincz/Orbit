@@ -7,6 +7,7 @@ import { RefreshPeopleButton } from "@/components/network/RefreshPeopleButton";
 import { PersonDetail } from "@/components/people/PersonDetail";
 import { RelationshipSidebar } from "@/components/people/RelationshipSidebar";
 import { SearchCommand } from "@/components/search/SearchCommand";
+import type { RelationshipFilter } from "@/lib/graph-filters";
 import type { ISODate, PeopleDataset } from "@/types/person";
 
 interface NetworkWorkspaceProps {
@@ -17,6 +18,7 @@ interface NetworkWorkspaceProps {
 export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspaceProps) {
   const loadedPeopleCount = initialDataset.people.length;
   const [selection, setSelection] = useState({ dataset: initialDataset, selectedId: null as string | null });
+  const [activeFilter, setActiveFilter] = useState<RelationshipFilter>("all");
   const selectedId = selection.dataset === initialDataset
     || initialDataset.people.some((person) => person.id === selection.selectedId)
     ? selection.selectedId
@@ -57,7 +59,10 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
           selectedId={selectedId}
         />
         <NetworkGraph
+          activeFilter={activeFilter}
+          currentDate={currentDate}
           dataset={initialDataset}
+          onFilterChange={setActiveFilter}
           onSelect={selectPerson}
           selectedId={selectedId}
         />
