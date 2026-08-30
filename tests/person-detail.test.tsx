@@ -60,6 +60,26 @@ describe("PersonDetail", () => {
     expect(screen.getByRole("button", { name: "Copy path" })).toBeVisible();
   });
 
+  it("links Open Markdown for a Windows source path", () => {
+    const win = makePerson({ id: "win", name: "Win Person", sourcePath: "C:\\Users\\Charlie\\Orbit\\data\\people\\win.md" });
+    render(<PersonDetail person={win} people={[win]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("link", { name: "Open Markdown" })).toHaveAttribute(
+      "href",
+      "vscode://file/C:/Users/Charlie/Orbit/data/people/win.md",
+    );
+  });
+
+  it("keeps Copy path usable when the source path cannot open in VS Code", () => {
+    const odd = makePerson({ id: "odd", name: "Odd Person", sourcePath: "data/people/odd.md", sourceRelativePath: "data/people/odd.md" });
+    render(<PersonDetail person={odd} people={[odd]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Odd Person" })).toBeVisible();
+    expect(screen.queryByText("Open Markdown")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy path" })).toBeVisible();
+    expect(screen.getByText("data/people/odd.md")).toBeVisible();
+  });
+
   it("puts actionable Conversation Prep before interaction history", async () => {
     const user = userEvent.setup();
     render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);

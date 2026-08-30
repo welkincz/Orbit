@@ -58,6 +58,7 @@ function PersonDetailContent({
   const roleAndTeam = [person.role, person.team].filter(Boolean).join(" · ");
   const interactionCount = person.interactions.length;
   const latestInteraction = person.interactions[0];
+  const vscodeHref = toVscodeFileHref(person.sourcePath);
 
   async function copyPath() {
     try {
@@ -192,10 +193,12 @@ function PersonDetailContent({
 
       <Separator className="person-detail__divider" />
       <div className="person-detail__actions">
-        <a className="text-action" href={toVscodeFileHref(person.sourcePath)}>
-          <FilePenLine aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
-          Open Markdown
-        </a>
+        {vscodeHref && (
+          <a className="text-action" href={vscodeHref}>
+            <FilePenLine aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+            Open Markdown
+          </a>
+        )}
         <button className="text-action" onClick={copyPath} type="button">
           <Copy aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
           Copy path

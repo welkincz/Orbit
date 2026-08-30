@@ -26,22 +26,6 @@ Lena offers grounded product-strategy perspective.
 
 Her questions help separate a meaningful platform investment from a merely interesting technical idea.
 
-## Conversation Prep
-
-### Their world
-
-Lena is arguing for a narrower product strategy against pressure to keep every existing commitment alive.
-
-### What they care about
-
-- Saying no early rather than under-resourcing everything
-- Product decisions written down well enough to outlast the meeting
-
-### Next conversation
-
-- Ask which commitment she managed to drop
-- Ask what made the narrower strategy finally persuasive
-
 ## Interactions
 
 ### 2026-07-30 — Lunch
