@@ -5,14 +5,16 @@ import { Copy, FilePenLine, Maximize2, Minimize2, X } from "lucide-react";
 import { titleCase } from "@/lib/format";
 import { toVscodeFileHref } from "@/lib/local-files";
 import type { ISODate, Person } from "@/types/person";
-import { ConversationPrepPanel } from "./ConversationPrep";
-import { MarkdownSection } from "./MarkdownSection";
+import { NextActions, PrepDisclosures } from "./ConversationPrep";
+import { InteractionTimeline } from "./InteractionTimeline";
+import { MarkdownContent, MarkdownSection } from "./MarkdownSection";
 import { RelationshipStrength } from "./RelationshipStrength";
 import { Separator } from "../ui/Separator";
 
 interface PersonDetailProps {
   person: Person;
   people: Person[];
+  currentDate: ISODate;
   detailMaxWidth?: number;
   detailWidth?: number;
   expanded?: boolean;
@@ -41,6 +43,7 @@ export function PersonDetail(props: PersonDetailProps) {
 function PersonDetailContent({
   person,
   people,
+  currentDate,
   detailMaxWidth = 760,
   detailWidth = 368,
   expanded = false,
@@ -56,8 +59,8 @@ function PersonDetailContent({
   const introducer = person.introducedBy ? people.find(({ id }) => id === person.introducedBy) : undefined;
   const roleAndTeam = [person.role, person.team].filter(Boolean).join(" · ");
   const interactionCount = person.interactions.length;
-  const latestInteraction = person.interactions[0];
   const vscodeHref = toVscodeFileHref(person.sourcePath);
+  const whyTheyMatter = person.sections.whyTheyMatter.trim();
 
   async function copyPath() {
     try {
@@ -116,6 +119,8 @@ function PersonDetailContent({
     />
     <aside aria-label={`${person.name} details`} className="person-detail">
       <div className="person-detail__inner">
+
+      {/* Tier 1 — who this is */}
       <div className="person-detail__header">
         <div className="min-w-0">
           <h2 className="person-detail__name">{person.name}</h2>
@@ -130,8 +135,8 @@ function PersonDetailContent({
             type="button"
           >
             {expanded
-              ? <Minimize2 aria-hidden="true" className="size-4" strokeWidth={1.75} />
-              : <Maximize2 aria-hidden="true" className="size-4" strokeWidth={1.75} />}
+              ? <Minimize2 aria-hidden="true" className="icon" strokeWidth={1.75} />
+              : <Maximize2 aria-hidden="true" className="icon" strokeWidth={1.75} />}
           </button>
           <button
             aria-label="Close details"
@@ -139,10 +144,16 @@ function PersonDetailContent({
             onClick={onClose}
             type="button"
           >
-            <X aria-hidden="true" className="size-4" strokeWidth={1.75} />
+            <X aria-hidden="true" className="icon" strokeWidth={1.75} />
           </button>
         </div>
       </div>
+
+      {whyTheyMatter && (
+        <div className="person-detail__standfirst">
+          <MarkdownContent markdown={whyTheyMatter} />
+        </div>
+      )}
 
       <dl className="person-detail__facts">
         <div>
@@ -153,7 +164,7 @@ function PersonDetailContent({
           <div>
             <dt className="person-detail__fact-label">Strategic relevance</dt>
             <dd className="person-detail__fact-value">
-              <span className="relevance-value" data-relevance={person.strategicRelevance}>
+              <span className="relevance-chip" data-relevance={person.strategicRelevance}>
                 {titleCase(person.strategicRelevance)}
               </span>
             </dd>
@@ -165,16 +176,24 @@ function PersonDetailContent({
             <dd className="person-detail__fact-value">{formatDate(person.effectiveLastContact)}</dd>
           </div>
         )}
+        <div>
+          <dt className="person-detail__fact-label">Interactions</dt>
+          <dd className="person-detail__fact-value">
+            {interactionCount > 0
+              ? (
+                <a className="text-action person-detail__fact-link" href="#interaction-history">
+                  {interactionCount} {interactionCount === 1 ? "interaction" : "interactions"}
+                </a>
+              )
+              : "None recorded"}
+          </dd>
+        </div>
         {person.diagnostics.map((diagnostic) => (
           <div className="person-detail__diagnostic" key={diagnostic.code}>
             <dt className="person-detail__fact-label">Check this record</dt>
             <dd className="person-detail__fact-value">{diagnostic.message}</dd>
           </div>
         ))}
-        <div>
-          <dt className="person-detail__fact-label">Interactions</dt>
-          <dd className="person-detail__fact-value">{interactionCount} {interactionCount === 1 ? "interaction" : "interactions"}</dd>
-        </div>
       </dl>
 
       {introducer && (
@@ -186,32 +205,27 @@ function PersonDetailContent({
         </p>
       )}
 
+      {/* Tier 2 — what to do next */}
+      <NextActions followUp={person.sections.followUp} prep={person.conversationPrep} />
+
+      {/* Tier 3 — what to recall */}
       <Separator className="person-detail__divider" />
-      <div className="person-detail__sections">
-        <MarkdownSection markdown={person.sections.whyTheyMatter} title="Why they matter" />
-        <MarkdownSection markdown={person.sections.context} title="Context" />
-        <ConversationPrepPanel prep={person.conversationPrep} />
-        {latestInteraction && (
-          <section aria-labelledby="latest-interaction-heading" className="detail-section">
-            <h3 className="detail-section__heading" id="latest-interaction-heading">Latest interaction</h3>
-            <p className="person-detail__latest-kind">{latestInteraction.kind}</p>
-            <p className="person-detail__date">{formatDate(latestInteraction.date)}</p>
-            <MarkdownSection markdown={latestInteraction.markdown} title="Conversation notes" />
-          </section>
-        )}
-        <MarkdownSection markdown={person.sections.followUp} title="Follow-up" />
+      <div className="person-detail__sections person-detail__sections--recall">
+        <MarkdownSection markdown={person.sections.context} quiet title="Context" />
+        <PrepDisclosures prep={person.conversationPrep} />
+        <InteractionTimeline currentDate={currentDate} interactions={person.interactions} />
       </div>
 
       <Separator className="person-detail__divider" />
       <div className="person-detail__actions">
         {vscodeHref && (
           <a className="text-action" href={vscodeHref}>
-            <FilePenLine aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+            <FilePenLine aria-hidden="true" className="icon-sm" strokeWidth={1.75} />
             Open Markdown
           </a>
         )}
         <button className="text-action" onClick={copyPath} type="button">
-          <Copy aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+          <Copy aria-hidden="true" className="icon-sm" strokeWidth={1.75} />
           Copy path
         </button>
         <span aria-live="polite" className="person-detail__status">{copyStatus}</span>

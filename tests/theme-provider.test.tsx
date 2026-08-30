@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import { StrictMode } from "react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -79,5 +80,26 @@ describe("ThemeProvider", () => {
     }));
 
     expect(document.documentElement.dataset.theme).toBe("light");
+  });
+
+  it("keeps toggling after a StrictMode remount", async () => {
+    const user = userEvent.setup();
+    render(
+      <StrictMode>
+        <ThemeProvider>
+          <ThemeProbe />
+        </ThemeProvider>
+      </StrictMode>,
+    );
+
+    // StrictMode mounts, unmounts, and remounts effects. The provider's cleanup
+    // must not leave the store permanently unusable.
+    const button = screen.getByRole("button");
+    expect(button).toHaveTextContent("light");
+
+    await user.click(button);
+    expect(button).toHaveTextContent("dark");
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
+    expect(document.documentElement.dataset.theme).toBe("dark");
   });
 });

@@ -45,6 +45,20 @@ export interface PeopleDataIssueGroup {
   issues: string[];
 }
 
+/**
+ * An empty people directory is a first run, not a failure. It gets its own type
+ * so the app can offer onboarding instead of the red error ledger.
+ */
+export class EmptyPeopleDirectoryError extends Error {
+  readonly directory: string;
+
+  constructor(directory: string) {
+    super(`No Markdown files found in ${directory}`);
+    this.name = "EmptyPeopleDirectoryError";
+    this.directory = directory;
+  }
+}
+
 export class PeopleDataError extends Error {
   readonly sourceRelativePath?: string;
   readonly issues: string[];

@@ -4,6 +4,8 @@ import { headingId } from "@/lib/format";
 interface MarkdownSectionProps {
   title: string;
   markdown: string;
+  /** Recall-tier sections sit below the actionable block and read quieter. */
+  quiet?: boolean;
 }
 
 interface MarkdownContentProps {
@@ -36,10 +38,10 @@ const markdownComponents = {
     <p className="detail-prose">{children}</p>
   ),
   ul: ({ children }: { children?: React.ReactNode }) => (
-    <ul className="detail-prose-list list-disc">{children}</ul>
+    <ul className="detail-prose-list">{children}</ul>
   ),
   ol: ({ children }: { children?: React.ReactNode }) => (
-    <ol className="detail-prose-list list-decimal">{children}</ol>
+    <ol className="detail-prose-list">{children}</ol>
   ),
   li: ({ children }: { children?: React.ReactNode }) => <li>{children}</li>,
   strong: ({ children }: { children?: React.ReactNode }) => (
@@ -76,14 +78,17 @@ export function MarkdownContent({ markdown }: MarkdownContentProps) {
   );
 }
 
-export function MarkdownSection({ title, markdown }: MarkdownSectionProps) {
+export function MarkdownSection({ title, markdown, quiet = false }: MarkdownSectionProps) {
   if (!markdown.trim()) return null;
 
   const sectionId = headingId(title);
 
   return (
     <section aria-labelledby={sectionId} className="detail-section">
-      <h3 className="detail-section__heading" id={sectionId}>
+      <h3
+        className={`detail-section__heading${quiet ? " detail-section__heading--quiet" : ""}`}
+        id={sectionId}
+      >
         {title}
       </h3>
       <MarkdownContent markdown={markdown} />

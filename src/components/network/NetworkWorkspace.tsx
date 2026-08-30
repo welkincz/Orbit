@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { OrbitMark } from "@/components/brand/OrbitMark";
 import { DataWarnings } from "@/components/errors/DataWarnings";
 import { NetworkGraph } from "@/components/network/NetworkGraph";
 import { RefreshPeopleButton } from "@/components/network/RefreshPeopleButton";
@@ -54,7 +55,12 @@ function formatClockTime(isoTimestamp: string): string {
 }
 
 export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspaceProps) {
-  const loadedPeopleCount = initialDataset.people.length;
+  // Your own record anchors the map but is not someone you know, so it stays
+  // out of every count the interface shows: header, tab title, and canvas label
+  // all have to agree.
+  const loadedPeopleCount = initialDataset.people.filter(
+    (person) => person.type === "person",
+  ).length;
   const loadedAtLabel = useMemo(
     () => formatClockTime(initialDataset.loadedAt),
     [initialDataset.loadedAt],
@@ -74,6 +80,13 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
     (id: string | null) => setSelection({ dataset: initialDataset, selectedId: id }),
     [initialDataset],
   );
+  // Selection replaces the map with one person's neighbourhood, so choosing a
+  // view has to clear it — otherwise the control reports success and the canvas
+  // never changes.
+  const changeFilter = useCallback((filter: RelationshipFilter) => {
+    setActiveFilter(filter);
+    setSelection({ dataset: initialDataset, selectedId: null });
+  }, [initialDataset]);
   const selectedPerson = useMemo(
     () => initialDataset.people.find((person) => person.id === selectedId),
     [initialDataset.people, selectedId],
@@ -154,28 +167,55 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [closeDetail, selectedId]);
 
+  useEffect(() => {
+    // The server already titles the tab for the resting state, so this only has
+    // to track selection, which never reaches the URL. Because it runs on a
+    // state change well after hydration, it does not race the metadata pass.
+    // Person first: a narrow tab truncates from the right.
+    document.title = selectedPerson
+      ? `${selectedPerson.name} · Orbit`
+      : `Orbit — ${loadedPeopleCount} ${loadedPeopleCount === 1 ? "person" : "people"}`;
+  }, [loadedPeopleCount, selectedPerson]);
+
   const workspaceStyle = { "--detail-width": `${effectiveDetailWidth}px` } as CSSProperties;
+  // Below 1280px the panel floats over the map. Fading it in would let nodes and
+  // labels read straight through the text, so an overlay only slides.
+  const detailIsOverlay = viewportWidth < 1280;
+  const detailFade = detailIsOverlay ? 1 : reduceMotion ? 0 : 0.01;
 
   return (
     <main className="orbit-shell">
       <header className="orbit-header">
         <div className="orbit-brand">
-          <h1 className="orbit-title">Orbit</h1>
-          <p className="orbit-count">
-            {loadedPeopleCount} {loadedPeopleCount === 1 ? "person" : "people"} loaded
-          </p>
-          <time
-            className="orbit-count orbit-loaded-at"
-            dateTime={initialDataset.loadedAt}
-            data-testid="orbit-loaded-at"
-            suppressHydrationWarning
-            title={`Markdown last read at ${loadedAtLabel}`}
-          >
-            Read {loadedAtLabel}
-          </time>
+          <h1 className="orbit-wordmark">
+            <OrbitMark />
+            <span className="orbit-title">Orbit</span>
+          </h1>
+          <span aria-hidden="true" className="orbit-brand__rule" />
+          <div className="orbit-meta">
+            <p className="orbit-count">
+              {loadedPeopleCount} {loadedPeopleCount === 1 ? "person" : "people"} loaded
+            </p>
+            <time
+              className="orbit-count orbit-loaded-at"
+              dateTime={initialDataset.loadedAt}
+              data-testid="orbit-loaded-at"
+              suppressHydrationWarning
+              title={`Markdown last read at ${loadedAtLabel}`}
+            >
+              Read {loadedAtLabel}
+            </time>
+          </div>
         </div>
         <div className="orbit-actions">
-          <SearchCommand people={initialDataset.people} onSelect={selectPerson} />
+          <SearchCommand
+            activeFilter={activeFilter}
+            onSelect={selectPerson}
+            onSelectFilter={changeFilter}
+            people={initialDataset.people}
+            selectedPerson={selectedPerson}
+            selfId={initialDataset.selfId}
+          />
           <RefreshPeopleButton />
           <ThemeToggle />
         </div>
@@ -192,7 +232,7 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
           activeFilter={activeFilter}
           currentDate={currentDate}
           dataset={initialDataset}
-          onFilterChange={setActiveFilter}
+          onFilterChange={changeFilter}
           onSelect={selectPerson}
           selectedId={selectedId}
         />
@@ -200,7 +240,7 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
           activeFilter={activeFilter}
           currentDate={currentDate}
           dataset={initialDataset}
-          onFilterChange={setActiveFilter}
+          onFilterChange={changeFilter}
           onSelect={selectPerson}
           selectedId={selectedId}
         />
@@ -214,14 +254,15 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
               }}
               className="orbit-detail-motion"
               exit={{
-                opacity: 0,
+                opacity: detailIsOverlay ? 1 : 0,
                 x: reduceMotion ? 0 : 16,
                 transition: { duration: reduceMotion ? 0.001 : 0.18, ease: [0.22, 1, 0.36, 1] },
               }}
-              initial={{ opacity: reduceMotion ? 0 : 0.01, x: reduceMotion ? 0 : 16 }}
+              initial={{ opacity: detailFade, x: reduceMotion ? 0 : 16 }}
               key="person-detail"
             >
               <PersonDetail
+                currentDate={currentDate}
                 detailMaxWidth={effectiveMaxDetailWidth}
                 detailWidth={effectiveDetailWidth}
                 expanded={detailSize.expanded}

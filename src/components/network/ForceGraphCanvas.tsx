@@ -24,13 +24,13 @@ import {
   buildGraphModel,
   getConnectedIds,
   getGraphLinkMetrics,
+  selectNeighbourhood,
   type GraphLink,
   type GraphNode,
 } from "@/lib/graph-model";
 import {
   HOME_BEACON_ACTIVE_MS,
   HOME_BEACON_CYCLE_MS,
-  getContinuousParticleCount,
   getHomeBeaconFrame,
   shouldContinuouslyRedrawGraph,
   type BeaconFrame,
@@ -262,6 +262,7 @@ export function ForceGraphCanvas({
   const entranceStartedAtRef = useRef<number | null>(null);
   const darkSessionStartedRef = useRef(false);
   const lastActiveFilterRef = useRef(activeFilter);
+  const lastSelectedIdRef = useRef(selectedId);
   const lastLayoutResetTokenRef = useRef(layoutResetToken);
   const [size, setSize] = useState<GraphSize>({ width: 0, height: 0 });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -270,8 +271,17 @@ export function ForceGraphCanvas({
     () => typeof document === "undefined" || document.visibilityState === "visible",
   );
   const [beaconStartedAt, setBeaconStartedAt] = useState<number | null>(null);
+  const [keyboardNodeId, setKeyboardNodeId] = useState<string | null>(null);
   const palette = getGraphPalette(theme);
-  const graphData = useMemo(() => buildGraphModel(dataset), [dataset]);
+  const fullModel = useMemo(() => buildGraphModel(dataset), [dataset]);
+  // A twelve-spoke wheel says nothing you cannot read in the rail. One person's
+  // neighbourhood says who introduced them and who they opened up in turn.
+  const graphData = useMemo(
+    () => selectedId && fullModel.nodes.some((node) => node.personId === selectedId)
+      ? selectNeighbourhood(fullModel, dataset.selfId, selectedId)
+      : fullModel,
+    [dataset.selfId, fullModel, selectedId],
+  );
   const matchingIds = useMemo(
     () => getRelationshipFilterIds(dataset.people, currentDate, activeFilter),
     [activeFilter, currentDate, dataset.people],
@@ -344,6 +354,23 @@ export function ForceGraphCanvas({
     });
     return () => window.cancelAnimationFrame(animationFrame);
   }, [graphData.links, reduceMotion, selectedId]);
+
+  useEffect(() => {
+    // Only a genuine selection change moves the camera. On mount the simulation
+    // has not laid anything out yet, and fitting then collapses the whole map
+    // into a corner; the initial framing belongs to onEngineStop.
+    if (lastSelectedIdRef.current === selectedId) return;
+    lastSelectedIdRef.current = selectedId;
+    if (size.width === 0 || size.height === 0) return;
+
+    const graph = graphRef.current;
+    if (!graph) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      graph.zoomToFit(reduceMotion ? 0 : 460, selectedId ? 120 : 58);
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [reduceMotion, selectedId, size.height, size.width]);
 
   useEffect(() => {
     if (lastActiveFilterRef.current === activeFilter || size.width === 0 || size.height === 0) return;
@@ -456,20 +483,12 @@ export function ForceGraphCanvas({
     return endpointId(link.source) === selectedId || endpointId(link.target) === selectedId;
   }, [selectedId]);
 
-  const hasActiveSignal = graphData.links.some((link) => getContinuousParticleCount(
-    link,
-    activeFilter,
-    isLinkEmphasized(link),
-    reduceMotion,
-  ) > 0);
   const beaconActive = theme === "dark"
     && beaconStartedAt !== null
     && !reduceMotion
     && pageVisible;
   const continuouslyRedraw = shouldContinuouslyRedrawGraph({
-    hasActiveSignal,
     beaconActive,
-    filterActive: activeFilter !== "all",
     pageVisible,
     reduceMotion,
   });
@@ -496,8 +515,6 @@ export function ForceGraphCanvas({
       ? 1
       : Math.min(1, (now - entranceStartedAtRef.current) / SOLAR_ENTRANCE_DURATION_MS);
     const animated = !reduceMotion && continuouslyRedraw;
-    const filterPhase = (now % 3600) / 3600;
-    const filterPulse = animated ? (Math.sin(filterPhase * Math.PI * 2) + 1) / 2 : 0.5;
     const solarPhase = (now % 5600) / 5600;
     const solarBreath = animated ? (Math.sin(solarPhase * Math.PI * 2) + 1) / 2 : 0.5;
     const beaconFrame = getHomeBeaconFrame(
@@ -510,9 +527,9 @@ export function ForceGraphCanvas({
 
     if (filterMatch && !node.isSelf) {
       context.beginPath();
-      context.arc(node.x, node.y, renderedRadius + (7.5 + filterPulse * 1.5) / scale, 0, Math.PI * 2);
+      context.arc(node.x, node.y, renderedRadius + 8 / scale, 0, Math.PI * 2);
       context.fillStyle = palette.filterHalo[activeFilter];
-      context.globalAlpha = emphasized ? 0.09 + filterPulse * 0.06 : 0.05;
+      context.globalAlpha = emphasized ? 0.13 : 0.05;
       context.fill();
     }
 
@@ -526,6 +543,18 @@ export function ForceGraphCanvas({
       context.strokeStyle = palette.relevance[node.strategicRelevance];
       context.lineWidth = (selected || hovered ? 2 : 1.45) / scale;
       context.stroke();
+    }
+
+    if (node.personId === keyboardNodeId && !selected) {
+      context.save();
+      context.beginPath();
+      context.arc(node.x, node.y, renderedRadius + 6.5 / scale, 0, Math.PI * 2);
+      context.strokeStyle = palette.planet.selectedStroke;
+      context.lineWidth = 1.6 / scale;
+      context.setLineDash([3 / scale, 3 / scale]);
+      context.globalAlpha = 1;
+      context.stroke();
+      context.restore();
     }
 
     if (hovered && !selected && !filterMatch) {
@@ -592,7 +621,7 @@ export function ForceGraphCanvas({
       sceneVersionRef.current += 1;
     }
     context.restore();
-  }, [activeFilter, activeId, beaconStartedAt, continuouslyRedraw, dataset.selfId, hoveredId, isNodeEmphasized, matchingIds, pageVisible, palette, reduceMotion, selectedId, theme]);
+  }, [activeFilter, activeId, beaconStartedAt, continuouslyRedraw, dataset.selfId, hoveredId, isNodeEmphasized, keyboardNodeId, matchingIds, pageVisible, palette, reduceMotion, selectedId, theme]);
 
   const handleEngineStop = useCallback(() => {
     if (hasFittedRef.current) return;
@@ -687,7 +716,10 @@ export function ForceGraphCanvas({
 
   const handleZoom = useCallback(() => {
     invalidateScene();
-    setHoveredId(null);
+    // ForceGraph2D calls onZoom from inside its own render for the initial
+    // transform and for every programmatic zoomToFit, so clearing hover
+    // synchronously would be a setState during another component's render.
+    queueMicrotask(() => setHoveredId(null));
   }, [invalidateScene]);
 
   const handleEngineTick = useCallback(() => {
@@ -695,8 +727,14 @@ export function ForceGraphCanvas({
   }, [invalidateScene]);
 
   const handleZoomEnd = useCallback(() => {
-    const latestPointer = latestPointerRef.current;
-    if (latestPointer) updateHoverAt(latestPointer);
+    // onZoomEnd also lands inside ForceGraph2D's render when a programmatic
+    // zoomToFit settles, so recomputing hover has to leave the render phase.
+    // The pointer is read inside the microtask so a pointer that has since
+    // left the canvas resolves to no hover rather than a stale position.
+    queueMicrotask(() => {
+      const latestPointer = latestPointerRef.current;
+      if (latestPointer) updateHoverAt(latestPointer);
+    });
   }, [updateHoverAt]);
 
   const handleNodeDrag = useCallback(() => {
@@ -717,6 +755,38 @@ export function ForceGraphCanvas({
     writeGraphLayout(browserStorage(), layoutRef.current);
   }, [invalidateScene]);
 
+  const moveKeyboardFocus = useCallback((delta: number) => {
+    const order = graphData.nodes.map(({ personId }) => personId);
+    if (order.length === 0) return;
+
+    setKeyboardNodeId((current) => {
+      const index = current === null ? -1 : order.indexOf(current);
+      if (index < 0) return order[delta > 0 ? 0 : order.length - 1];
+      return order[(index + delta + order.length) % order.length];
+    });
+  }, [graphData.nodes]);
+
+  const handleCanvasKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      moveKeyboardFocus(1);
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      moveKeyboardFocus(-1);
+    } else if (event.key === "Enter" || event.key === " ") {
+      if (!keyboardNodeId) return;
+      event.preventDefault();
+      onSelect(keyboardNodeId);
+    }
+  }, [keyboardNodeId, moveKeyboardFocus, onSelect]);
+
+  // Derived, not synchronised: a node that left the view simply stops matching.
+  const keyboardNode = keyboardNodeId
+    ? graphData.nodes.find(({ personId }) => personId === keyboardNodeId)
+    : undefined;
+
   const tooltipX = Math.min(
     Math.max(8, tooltipCoordinates.x + 14),
     Math.max(8, size.width - TOOLTIP_WIDTH - 8),
@@ -730,7 +800,9 @@ export function ForceGraphCanvas({
     : "";
   return (
     <div
+      aria-label="Relationship map"
       className="orbit-graph-canvas"
+      onKeyDown={handleCanvasKeyDown}
       onPointerDownCapture={(event) => {
         draggedRef.current = false;
         pointerDownRef.current = isPrimaryPointerActivation(event)
@@ -745,6 +817,8 @@ export function ForceGraphCanvas({
       onPointerMoveCapture={handlePointerMove}
       onPointerUpCapture={handlePointerUp}
       ref={containerRef}
+      role="application"
+      tabIndex={0}
     >
       {size.width > 0 && size.height > 0 && (
         <ForceGraph2D<GraphNode, GraphLink>
@@ -784,12 +858,6 @@ export function ForceGraphCanvas({
           linkDirectionalArrowLength={(link: LinkObject<GraphNode, GraphLink>) => link.directed ? 6 : 0}
           linkDirectionalArrowRelPos={0.72}
           linkLineDash={(link: LinkObject<GraphNode, GraphLink>) => link.kind === "introduced_by" ? [5, 4] : null}
-          linkDirectionalParticles={(link: LinkObject<GraphNode, GraphLink>) => getContinuousParticleCount(
-            link,
-            activeFilter,
-            isLinkEmphasized(link),
-            reduceMotion,
-          )}
           linkDirectionalParticleColor={(link: LinkObject<GraphNode, GraphLink>) => isSelectedIntroduction(link)
             ? palette.particle.selected
             : palette.particle.ambient}
@@ -816,6 +884,10 @@ export function ForceGraphCanvas({
           width={size.width}
         />
       )}
+
+      <span aria-live="polite" className="graph-control-status" role="status">
+        {keyboardNode ? `${keyboardNode.name}. Press Enter to open.` : ""}
+      </span>
 
       {hoveredNode && (
         <div

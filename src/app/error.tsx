@@ -18,7 +18,7 @@ export default function AppError({ error, reset }: AppErrorProps) {
           Your Markdown records were not changed. Try again, and reload the page if the problem persists.
         </p>
 
-        <ul className="error-ledger__issues list-disc">
+        <ul className="error-ledger__issues">
           <li>{message}</li>
         </ul>
 

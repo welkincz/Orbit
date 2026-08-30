@@ -43,3 +43,14 @@ export function todayISO(date = new Date()): ISODate {
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}` as ISODate;
 }
+
+/** A short, scannable gap label for the interaction timeline. */
+export function describeElapsedDays(days: number): string {
+  if (!Number.isFinite(days)) return "";
+  if (days <= 0) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 30) return `${days}d ago`;
+  const months = Math.round(days / 30.44);
+  if (months < 18) return `${months}mo ago`;
+  return `${Math.round(days / 365.25)}y ago`;
+}

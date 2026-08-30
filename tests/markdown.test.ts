@@ -8,7 +8,7 @@ import {
   loadPeopleFromDirectory,
   parsePersonMarkdown,
 } from "@/lib/markdown";
-import { PeopleDataError } from "@/lib/people";
+import { EmptyPeopleDirectoryError, PeopleDataError } from "@/lib/people";
 
 const fixtureDirectory = dirname(fileURLToPath(import.meta.url));
 const validFixturePath = join(fixtureDirectory, "fixtures/markdown/maya-patel.md");
@@ -354,15 +354,15 @@ Second.
       .rejects.toThrow(/expected exactly one type: self record/i);
   });
 
-  it("rejects an empty directory with one concise issue", async () => {
+  it("reports an empty directory as a first run rather than broken data", async () => {
     const directory = await temporaryDirectory();
 
     try {
       await loadPeopleFromDirectory(directory, "2026-08-27");
       throw new Error("Expected loading to fail");
     } catch (error) {
-      expect(error).toBeInstanceOf(PeopleDataError);
-      expect((error as PeopleDataError).issues).toEqual(["No Markdown files found."]);
+      expect(error).toBeInstanceOf(EmptyPeopleDirectoryError);
+      expect((error as EmptyPeopleDirectoryError).directory).toBe(directory);
     }
   });
 });

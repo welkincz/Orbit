@@ -1,6 +1,3 @@
-import type { RelationshipFilter } from "@/lib/graph-filters";
-import type { GraphLink } from "@/lib/graph-model";
-
 export const HOME_BEACON_CYCLE_MS = 7400;
 export const HOME_BEACON_ACTIVE_MS = 820;
 
@@ -15,16 +12,6 @@ const INACTIVE_BEACON_FRAME: BeaconFrame = Object.freeze({
   progress: 0,
   intensity: 0,
 });
-
-export function getContinuousParticleCount(
-  link: Pick<GraphLink, "kind">,
-  activeFilter: RelationshipFilter,
-  emphasized: boolean,
-  reduceMotion: boolean,
-): number {
-  if (reduceMotion || activeFilter === "all" || !emphasized) return 0;
-  return link.kind === "introduced_by" ? 1 : 0;
-}
 
 export function getHomeBeaconFrame(
   elapsedMs: number,
@@ -45,14 +32,16 @@ export function getHomeBeaconFrame(
   };
 }
 
+/**
+ * Only the self anchor's beacon earns a continuous repaint. Ambient particles
+ * crawling along filtered introductions used to hold the loop open permanently
+ * while implying flow along an edge where nothing flows.
+ */
 export function shouldContinuouslyRedrawGraph(options: {
-  hasActiveSignal: boolean;
   beaconActive: boolean;
-  /** A relationship view is focused, so matching nodes carry an animated halo. */
-  filterActive: boolean;
   pageVisible: boolean;
   reduceMotion: boolean;
 }): boolean {
   if (options.reduceMotion || !options.pageVisible) return false;
-  return options.hasActiveSignal || options.beaconActive || options.filterActive;
+  return options.beaconActive;
 }

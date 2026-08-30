@@ -2,62 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   HOME_BEACON_ACTIVE_MS,
   HOME_BEACON_CYCLE_MS,
-  getContinuousParticleCount,
   getHomeBeaconFrame,
   shouldContinuouslyRedrawGraph,
 } from "@/lib/graph-motion";
-import type { GraphLink } from "@/lib/graph-model";
 
-function relationship(kind: GraphLink["kind"]): Pick<GraphLink, "kind"> {
-  return { kind };
-}
-
-describe("graph relationship motion", () => {
-  it.each([
-    {
-      name: "moves one emphasized introduction during a filtered view",
-      link: relationship("introduced_by"),
-      filter: "inner-circle" as const,
-      emphasized: true,
-      reduceMotion: false,
-      expected: 1,
-    },
-    {
-      name: "keeps direct relationships static",
-      link: relationship("direct"),
-      filter: "inner-circle" as const,
-      emphasized: true,
-      reduceMotion: false,
-      expected: 0,
-    },
-    {
-      name: "keeps the All view calm",
-      link: relationship("introduced_by"),
-      filter: "all" as const,
-      emphasized: true,
-      reduceMotion: false,
-      expected: 0,
-    },
-    {
-      name: "does not animate dimmed introductions",
-      link: relationship("introduced_by"),
-      filter: "targets" as const,
-      emphasized: false,
-      reduceMotion: false,
-      expected: 0,
-    },
-    {
-      name: "honors reduced motion",
-      link: relationship("introduced_by"),
-      filter: "targets" as const,
-      emphasized: true,
-      reduceMotion: true,
-      expected: 0,
-    },
-  ])("$name", ({ link, filter, emphasized, reduceMotion, expected }) => {
-    expect(getContinuousParticleCount(link, filter, emphasized, reduceMotion)).toBe(expected);
-  });
-
+describe("graph ambient motion", () => {
   it("keeps the Home Beacon active for less than one second per 7.4s cycle", () => {
     expect(HOME_BEACON_ACTIVE_MS).toBe(820);
     expect(HOME_BEACON_CYCLE_MS).toBe(7400);
@@ -93,12 +42,10 @@ describe("graph relationship motion", () => {
   });
 
   it.each([
-    { name: "rests with no active motion", hasActiveSignal: false, beaconActive: false, filterActive: false, pageVisible: true, reduceMotion: false, expected: false },
-    { name: "redraws an eligible semantic signal", hasActiveSignal: true, beaconActive: false, filterActive: false, pageVisible: true, reduceMotion: false, expected: true },
-    { name: "redraws the short beacon window", hasActiveSignal: false, beaconActive: true, filterActive: false, pageVisible: true, reduceMotion: false, expected: true },
-    { name: "redraws while a relationship filter animates its halo", hasActiveSignal: false, beaconActive: false, filterActive: true, pageVisible: true, reduceMotion: false, expected: true },
-    { name: "pauses all motion when hidden", hasActiveSignal: true, beaconActive: true, filterActive: true, pageVisible: false, reduceMotion: false, expected: false },
-    { name: "pauses all motion for reduced motion", hasActiveSignal: true, beaconActive: true, filterActive: true, pageVisible: true, reduceMotion: true, expected: false },
+    { name: "rests when the beacon is idle", beaconActive: false, pageVisible: true, reduceMotion: false, expected: false },
+    { name: "redraws the short beacon window", beaconActive: true, pageVisible: true, reduceMotion: false, expected: true },
+    { name: "pauses all motion when hidden", beaconActive: true, pageVisible: false, reduceMotion: false, expected: false },
+    { name: "pauses all motion for reduced motion", beaconActive: true, pageVisible: true, reduceMotion: true, expected: false },
   ])("$name", ({ expected, ...options }) => {
     expect(shouldContinuouslyRedrawGraph(options)).toBe(expected);
   });
