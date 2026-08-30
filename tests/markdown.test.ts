@@ -306,6 +306,30 @@ Second.
     }
   });
 
+  it("reports every invalid file in one error instead of only the first", async () => {
+    const directory = await temporaryDirectory();
+    await writeFile(join(directory, "a-self.md"), selfSource);
+    await copyFile(invalidFixturePath, join(directory, "b-broken.md"));
+    await writeFile(join(directory, "c-broken.md"), "---\nid: Not A Slug\nname: Nope\n---\n\n# Nope\n");
+
+    try {
+      await loadPeopleFromDirectory(directory, "2026-08-27");
+      throw new Error("Expected loading to fail");
+    } catch (error) {
+      expect(error).toBeInstanceOf(PeopleDataError);
+      const groups = (error as PeopleDataError).groups;
+      expect(groups).toHaveLength(2);
+      expect(groups.map((group) => group.sourceRelativePath?.split("/").at(-1))).toEqual([
+        "b-broken.md",
+        "c-broken.md",
+      ]);
+      expect(groups[0].issues.join(" ")).toMatch(/strategic_relevance/i);
+      expect(groups[1].issues.join(" ")).toMatch(/lowercase slug/i);
+      expect((error as PeopleDataError).issues.join(" ")).toMatch(/strategic_relevance/i);
+      expect((error as PeopleDataError).issues.join(" ")).toMatch(/lowercase slug/i);
+    }
+  });
+
   it("wraps a per-file read failure with that Markdown file's relative path", async () => {
     const directory = await temporaryDirectory();
     const unreadablePath = join(directory, "unreadable.md");

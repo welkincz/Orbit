@@ -80,6 +80,24 @@ describe("PersonDetail", () => {
     expect(screen.getByText("data/people/odd.md")).toBeVisible();
   });
 
+  it("warns inline when frontmatter last_contact is older than the newest interaction", () => {
+    const stale = makePerson({
+      id: "stale",
+      name: "Stale Person",
+      effectiveLastContact: "2026-01-01",
+      diagnostics: [{
+        level: "warning",
+        code: "last-contact-mismatch",
+        message: "Frontmatter last_contact 2026-01-01 is older than interaction 2026-06-01.",
+        sourceRelativePath: "data/people/stale.md",
+      }],
+    });
+
+    render(<PersonDetail person={stale} people={[stale]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.getByText(/older than interaction 2026-06-01/)).toBeVisible();
+  });
+
   it("puts actionable Conversation Prep before interaction history", async () => {
     const user = userEvent.setup();
     render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);

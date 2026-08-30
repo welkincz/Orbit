@@ -122,3 +122,69 @@ describe("NetworkWorkspace detail sizing", () => {
     expect(screen.getByRole("button", { name: "Restore details" })).toBeVisible();
   });
 });
+
+describe("NetworkWorkspace data warnings", () => {
+  afterEach(cleanup);
+
+  it("surfaces dataset diagnostics and lets them be dismissed", async () => {
+    const user = userEvent.setup();
+    const warned: PeopleDataset = {
+      ...dataset,
+      diagnostics: [
+        {
+          level: "warning",
+          code: "last-contact-mismatch",
+          message: "Frontmatter last_contact 2026-01-01 is older than interaction 2026-06-01.",
+          sourceRelativePath: "data/people/jane.md",
+        },
+        {
+          level: "warning",
+          code: "inner-circle-size",
+          message: "Inner Circle contains more than 10 people",
+        },
+      ],
+    };
+
+    render(
+      <ThemeProvider>
+        <NetworkWorkspace currentDate="2026-08-29" initialDataset={warned} />
+      </ThemeProvider>,
+    );
+
+    const warnings = screen.getByRole("region", { name: /data warnings/i });
+    expect(warnings).toBeVisible();
+    expect(screen.getByText(/older than interaction 2026-06-01/)).toBeVisible();
+    expect(screen.getByText("data/people/jane.md")).toBeVisible();
+    expect(screen.getByText("Inner Circle contains more than 10 people")).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Dismiss data warnings" }));
+    expect(screen.queryByRole("region", { name: /data warnings/i })).not.toBeInTheDocument();
+  });
+
+  it("renders no warning region when the dataset is clean", () => {
+    render(
+      <ThemeProvider>
+        <NetworkWorkspace currentDate="2026-08-29" initialDataset={dataset} />
+      </ThemeProvider>,
+    );
+
+    expect(screen.queryByRole("region", { name: /data warnings/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("NetworkWorkspace load freshness", () => {
+  afterEach(cleanup);
+
+  it("shows when the dataset was last read from disk", () => {
+    render(
+      <ThemeProvider>
+        <NetworkWorkspace currentDate="2026-08-29" initialDataset={dataset} />
+      </ThemeProvider>,
+    );
+
+    const stamp = screen.getByTestId("orbit-loaded-at");
+    expect(stamp).toBeVisible();
+    expect(stamp).toHaveAttribute("dateTime", "2026-08-29T00:00:00.000Z");
+    expect(stamp.textContent).toMatch(/^Read \d{1,2}:\d{2}/);
+  });
+});

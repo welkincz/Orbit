@@ -160,6 +160,12 @@ function PersonDetailContent({
             <dd className="person-detail__fact-value">{formatDate(person.effectiveLastContact)}</dd>
           </div>
         )}
+        {person.diagnostics.map((diagnostic) => (
+          <div className="person-detail__diagnostic" key={diagnostic.code}>
+            <dt className="person-detail__fact-label">Check this record</dt>
+            <dd className="person-detail__fact-value">{diagnostic.message}</dd>
+          </div>
+        ))}
         <div>
           <dt className="person-detail__fact-label">Interactions</dt>
           <dd className="person-detail__fact-value">{interactionCount} {interactionCount === 1 ? "interaction" : "interactions"}</dd>

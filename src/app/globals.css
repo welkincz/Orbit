@@ -122,10 +122,10 @@ input,
 }
 
 .orbit-shell {
-  display: grid;
+  display: flex;
   height: 100dvh;
   min-height: 100dvh;
-  grid-template-rows: var(--header-height) minmax(0, 1fr);
+  flex-direction: column;
   overflow: hidden;
   background: var(--canvas);
 }
@@ -135,6 +135,8 @@ input,
   z-index: 40;
   display: flex;
   min-width: 0;
+  height: var(--header-height);
+  flex: 0 0 var(--header-height);
   align-items: center;
   justify-content: space-between;
   gap: 20px;
@@ -163,6 +165,16 @@ input,
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.015em;
   white-space: nowrap;
+}
+
+.orbit-loaded-at {
+  color: var(--faint);
+}
+
+@media (max-width: 899px) {
+  .orbit-loaded-at {
+    display: none;
+  }
 }
 
 .orbit-actions {
@@ -322,11 +334,54 @@ html[data-theme="dark"] .theme-toggle__orb::before {
   line-height: 1;
 }
 
+.data-warnings {
+  position: relative;
+  z-index: 35;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: 9px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--sidebar);
+  padding: 8px 18px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.data-warnings__icon {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--relevance-high);
+}
+
+.data-warnings__list {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.data-warnings__source {
+  margin-left: 7px;
+  color: var(--faint);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+}
+
+.data-warnings__dismiss {
+  flex: 0 0 auto;
+}
+
 .orbit-workspace {
   position: relative;
   display: grid;
   min-width: 0;
   min-height: 0;
+  flex: 1 1 auto;
   grid-template-columns: 236px minmax(0, 1fr);
   overflow: hidden;
 }
@@ -836,6 +891,15 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   color: var(--ink);
 }
 
+.person-detail__diagnostic {
+  grid-column: 1 / -1;
+}
+
+.person-detail__diagnostic .person-detail__fact-label,
+.person-detail__diagnostic .person-detail__fact-value {
+  color: var(--relevance-high);
+}
+
 .person-detail__divider {
   margin: 18px 0;
   border-color: var(--line);
@@ -1169,6 +1233,10 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   padding: 0 22px;
   color: var(--muted);
   font-size: 12px;
+}
+
+.error-ledger__group + .error-ledger__group {
+  margin-top: 6px;
 }
 
 .error-ledger__source {

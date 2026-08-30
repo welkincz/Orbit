@@ -41,19 +41,41 @@ const frontmatterSchema = z.object({
   }
 });
 
+export interface PeopleDataIssueGroup {
+  sourceRelativePath?: string;
+  issues: string[];
+}
+
 export class PeopleDataError extends Error {
   readonly sourceRelativePath?: string;
   readonly issues: string[];
+  readonly groups: PeopleDataIssueGroup[];
 
   constructor(
     message: string,
-    options: { sourceRelativePath?: string; issues: string[] },
+    options: { sourceRelativePath?: string; issues: string[]; groups?: PeopleDataIssueGroup[] },
   ) {
     super(`${message}: ${options.issues.join("; ")}`);
     this.name = "PeopleDataError";
     this.sourceRelativePath = options.sourceRelativePath;
     this.issues = options.issues;
+    this.groups = options.groups
+      ?? [{ sourceRelativePath: options.sourceRelativePath, issues: options.issues }];
   }
+}
+
+/**
+ * Merges per-file failures so the user can fix every broken record in one pass
+ * instead of rediscovering the next one after each refresh.
+ */
+export function aggregatePeopleDataErrors(errors: PeopleDataError[]): PeopleDataError {
+  if (errors.length === 1) return errors[0];
+
+  const groups = errors.flatMap((error) => error.groups);
+  return new PeopleDataError("Invalid people data", {
+    issues: groups.flatMap((group) => group.issues),
+    groups,
+  });
 }
 
 export function toPeopleDataError(error: unknown): PeopleDataError {

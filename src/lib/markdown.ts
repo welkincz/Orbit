@@ -6,7 +6,13 @@ import { toString } from "mdast-util-to-string";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { isISODate, todayISO } from "@/lib/dates";
-import { normalizeFrontmatter, PeopleDataError, validatePeopleCollection } from "@/lib/people";
+import {
+  aggregatePeopleDataErrors,
+  normalizeFrontmatter,
+  PeopleDataError,
+  toPeopleDataError,
+  validatePeopleCollection,
+} from "@/lib/people";
 import type {
   ConversationPrep,
   Interaction,
@@ -289,7 +295,7 @@ export async function loadPeopleFromDirectory(
     throw new PeopleDataError("Invalid people data", { issues: ["No Markdown files found."] });
   }
 
-  const people = await Promise.all(entries.map(async (entry) => {
+  const results = await Promise.allSettled(entries.map(async (entry) => {
     const absolutePath = resolve(directory, entry.name);
     const relativePath = relative(process.cwd(), absolutePath);
     let source: string;
@@ -309,5 +315,13 @@ export async function loadPeopleFromDirectory(
     });
   }));
 
+  const failures = results.flatMap((result) => (
+    result.status === "rejected" ? [toPeopleDataError(result.reason)] : []
+  ));
+  if (failures.length > 0) throw aggregatePeopleDataErrors(failures);
+
+  const people = results.flatMap((result) => (
+    result.status === "fulfilled" ? [result.value] : []
+  ));
   return validatePeopleCollection(people, currentDate);
 }

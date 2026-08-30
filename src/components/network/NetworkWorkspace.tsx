@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { DataWarnings } from "@/components/errors/DataWarnings";
 import { NetworkGraph } from "@/components/network/NetworkGraph";
 import { RefreshPeopleButton } from "@/components/network/RefreshPeopleButton";
 import { PersonDetail } from "@/components/people/PersonDetail";
@@ -109,8 +110,18 @@ function parseDetailSize(snapshot: string): DetailSize {
   }
 }
 
+function formatClockTime(isoTimestamp: string): string {
+  const parsed = new Date(isoTimestamp);
+  if (Number.isNaN(parsed.getTime())) return "unknown time";
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(parsed);
+}
+
 export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspaceProps) {
   const loadedPeopleCount = initialDataset.people.length;
+  const loadedAtLabel = useMemo(
+    () => formatClockTime(initialDataset.loadedAt),
+    [initialDataset.loadedAt],
+  );
   const [selection, setSelection] = useState({ dataset: initialDataset, selectedId: null as string | null });
   const [activeFilter, setActiveFilter] = useState<RelationshipFilter>("all");
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -191,6 +202,15 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
           <p className="orbit-count">
             {loadedPeopleCount} {loadedPeopleCount === 1 ? "person" : "people"} loaded
           </p>
+          <time
+            className="orbit-count orbit-loaded-at"
+            dateTime={initialDataset.loadedAt}
+            data-testid="orbit-loaded-at"
+            suppressHydrationWarning
+            title={`Markdown last read at ${loadedAtLabel}`}
+          >
+            Read {loadedAtLabel}
+          </time>
         </div>
         <div className="orbit-actions">
           <SearchCommand people={initialDataset.people} onSelect={selectPerson} />
@@ -198,6 +218,8 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
           <ThemeToggle />
         </div>
       </header>
+
+      <DataWarnings diagnostics={initialDataset.diagnostics} />
 
       <div
         className={`orbit-workspace${selectedPerson ? " has-detail" : ""}${detailSize.expanded ? " has-detail-expanded" : ""}`}
