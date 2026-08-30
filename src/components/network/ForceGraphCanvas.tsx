@@ -24,9 +24,15 @@ import {
   type GraphLink,
   type GraphNode,
 } from "@/lib/graph-model";
-import { getContinuousParticleCount } from "@/lib/graph-motion";
 import {
-  FILTER_HALO_COLOR,
+  HOME_BEACON_ACTIVE_MS,
+  HOME_BEACON_CYCLE_MS,
+  getContinuousParticleCount,
+  getHomeBeaconFrame,
+  shouldContinuouslyRedrawGraph,
+  type BeaconFrame,
+} from "@/lib/graph-motion";
+import {
   getFilterFocusIds,
   getGraphVisualState,
   getRelationshipFilterIds,
@@ -38,7 +44,9 @@ import {
   writeGraphLayout,
   type GraphLayout,
 } from "@/lib/graph-layout";
-import type { ISODate, PeopleDataset, StrategicRelevance } from "@/types/person";
+import { getGraphPalette, type GraphPalette } from "@/lib/graph-theme";
+import type { ThemeName } from "@/lib/theme";
+import type { ISODate, PeopleDataset } from "@/types/person";
 
 interface ForceGraphCanvasProps {
   activeFilter: RelationshipFilter;
@@ -46,6 +54,7 @@ interface ForceGraphCanvasProps {
   dataset: PeopleDataset;
   layoutResetToken: number;
   selectedId: string | null;
+  theme: ThemeName;
   onSelect: (id: string | null) => void;
 }
 
@@ -62,13 +71,6 @@ interface TooltipCoordinates {
 const TOOLTIP_WIDTH = 240;
 const TOOLTIP_HEIGHT = 116;
 const SOLAR_ENTRANCE_DURATION_MS = 650;
-const SOLAR_GOLD = "#bd9144";
-
-const relevanceColor: Record<StrategicRelevance, string> = {
-  high: "#b65f43",
-  medium: "#748468",
-  low: "#969895",
-};
 
 function endpointId(endpoint: GraphLink["source"] | undefined): string | undefined {
   if (typeof endpoint === "string") return endpoint;
@@ -87,6 +89,7 @@ function drawSolarAnchor(
   scale: number,
   entranceProgress: number,
   breath: number,
+  colors: GraphPalette["solarAnchor"],
 ) {
   const easedProgress = 1 - Math.pow(1 - entranceProgress, 3);
   const sunRadius = radius * (0.78 + easedProgress * 0.22);
@@ -97,12 +100,12 @@ function drawSolarAnchor(
 
   context.beginPath();
   context.arc(x, y, coronaRadius, 0, Math.PI * 2);
-  context.strokeStyle = SOLAR_GOLD;
+  context.strokeStyle = colors.corona;
   context.lineWidth = (1.4 + breath * 0.35) / scale;
   context.globalAlpha = inheritedAlpha * (0.16 + breath * 0.1);
   context.stroke();
 
-  context.strokeStyle = SOLAR_GOLD;
+  context.strokeStyle = colors.ray;
   context.lineCap = "round";
   context.lineWidth = 1.3 / scale;
   context.globalAlpha = inheritedAlpha * (0.5 + easedProgress * 0.42);
@@ -130,14 +133,100 @@ function drawSolarAnchor(
   context.globalAlpha = inheritedAlpha;
   context.beginPath();
   context.arc(x, y, sunRadius, 0, Math.PI * 2);
-  context.fillStyle = "#1b1d1e";
+  context.fillStyle = colors.core;
   context.fill();
 
   context.beginPath();
   context.arc(x, y, sunRadius * 0.64, 0, Math.PI * 2);
-  context.strokeStyle = "rgba(243, 224, 177, 0.74)";
+  context.strokeStyle = colors.innerRing;
   context.lineWidth = 1.1 / scale;
   context.stroke();
+  context.restore();
+}
+
+function drawHomeWorld(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  radius: number,
+  scale: number,
+  entranceProgress: number,
+  beacon: BeaconFrame,
+  colors: GraphPalette["homeWorld"],
+) {
+  const easedProgress = 1 - Math.pow(1 - entranceProgress, 3);
+  const worldRadius = radius * (0.82 + easedProgress * 0.18);
+  const inheritedAlpha = context.globalAlpha;
+  const beaconX = x + worldRadius * 0.34;
+  const beaconY = y - worldRadius * 0.38;
+
+  context.save();
+
+  context.beginPath();
+  context.arc(x, y, worldRadius + (3.8 + beacon.intensity * 1.8) / scale, 0, Math.PI * 2);
+  context.strokeStyle = colors.limb;
+  context.lineWidth = (1.15 + beacon.intensity * 0.28) / scale;
+  context.globalAlpha = inheritedAlpha * (0.18 + beacon.intensity * 0.08);
+  context.stroke();
+
+  context.globalAlpha = inheritedAlpha;
+  context.beginPath();
+  context.arc(x, y, worldRadius, 0, Math.PI * 2);
+  context.fillStyle = colors.ocean;
+  context.fill();
+  context.strokeStyle = colors.limb;
+  context.lineWidth = 1.35 / scale;
+  context.stroke();
+
+  context.save();
+  context.beginPath();
+  context.arc(x, y, worldRadius - 0.5 / scale, 0, Math.PI * 2);
+  context.clip();
+  context.beginPath();
+  context.moveTo(x - worldRadius * 0.72, y - worldRadius * 0.16);
+  context.bezierCurveTo(
+    x - worldRadius * 0.4,
+    y - worldRadius * 0.62,
+    x - worldRadius * 0.02,
+    y - worldRadius * 0.48,
+    x + worldRadius * 0.12,
+    y - worldRadius * 0.12,
+  );
+  context.bezierCurveTo(
+    x + worldRadius * 0.28,
+    y + worldRadius * 0.16,
+    x - worldRadius * 0.12,
+    y + worldRadius * 0.58,
+    x - worldRadius * 0.54,
+    y + worldRadius * 0.34,
+  );
+  context.closePath();
+  context.fillStyle = colors.land;
+  context.globalAlpha = inheritedAlpha * 0.9;
+  context.fill();
+  context.restore();
+
+  context.globalAlpha = inheritedAlpha * 0.7;
+  context.beginPath();
+  context.arc(x, y, worldRadius * 0.66, 0, Math.PI * 2);
+  context.strokeStyle = colors.innerRing;
+  context.lineWidth = 0.9 / scale;
+  context.stroke();
+
+  if (beacon.active) {
+    context.globalAlpha = inheritedAlpha * (0.16 + beacon.intensity * 0.22);
+    context.beginPath();
+    context.arc(beaconX, beaconY, (3.2 + beacon.progress * 5.4) / scale, 0, Math.PI * 2);
+    context.strokeStyle = colors.beacon;
+    context.lineWidth = 1 / scale;
+    context.stroke();
+  }
+
+  context.globalAlpha = inheritedAlpha * 0.9;
+  context.beginPath();
+  context.arc(beaconX, beaconY, 1.2 / scale, 0, Math.PI * 2);
+  context.fillStyle = colors.beacon;
+  context.fill();
   context.restore();
 }
 
@@ -155,6 +244,7 @@ export function ForceGraphCanvas({
   dataset,
   layoutResetToken,
   selectedId,
+  theme,
   onSelect,
 }: ForceGraphCanvasProps) {
   const reduceMotion = useReducedMotion() ?? false;
@@ -168,11 +258,17 @@ export function ForceGraphCanvas({
   const draggedRef = useRef(false);
   const layoutRef = useRef<GraphLayout>({});
   const entranceStartedAtRef = useRef<number | null>(null);
+  const darkSessionStartedRef = useRef(false);
   const lastActiveFilterRef = useRef(activeFilter);
   const lastLayoutResetTokenRef = useRef(layoutResetToken);
   const [size, setSize] = useState<GraphSize>({ width: 0, height: 0 });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [tooltipCoordinates, setTooltipCoordinates] = useState<TooltipCoordinates>({ x: 0, y: 0 });
+  const [pageVisible, setPageVisible] = useState(
+    () => typeof document === "undefined" || document.visibilityState === "visible",
+  );
+  const [beaconStartedAt, setBeaconStartedAt] = useState<number | null>(null);
+  const palette = getGraphPalette(theme);
   const graphData = useMemo(() => buildGraphModel(dataset), [dataset]);
   const matchingIds = useMemo(
     () => getRelationshipFilterIds(dataset.people, currentDate, activeFilter),
@@ -186,6 +282,49 @@ export function ForceGraphCanvas({
   const hoveredNode = hoveredId
     ? graphData.nodes.find(({ personId }) => personId === hoveredId)
     : undefined;
+
+  useEffect(() => {
+    const updateVisibility = () => setPageVisible(document.visibilityState === "visible");
+    document.addEventListener("visibilitychange", updateVisibility);
+    return () => document.removeEventListener("visibilitychange", updateVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (theme !== "dark") {
+      darkSessionStartedRef.current = false;
+      return;
+    }
+    if (reduceMotion || !pageVisible) return;
+
+    let endTimer: number | undefined;
+    let nextTimer: number | undefined;
+    let cancelled = false;
+
+    const beginPulse = () => {
+      if (cancelled) return;
+      setBeaconStartedAt(performance.now());
+      endTimer = window.setTimeout(() => {
+        setBeaconStartedAt(null);
+        nextTimer = window.setTimeout(
+          beginPulse,
+          HOME_BEACON_CYCLE_MS - HOME_BEACON_ACTIVE_MS,
+        );
+      }, HOME_BEACON_ACTIVE_MS);
+    };
+
+    if (darkSessionStartedRef.current) {
+      nextTimer = window.setTimeout(beginPulse, HOME_BEACON_CYCLE_MS);
+    } else {
+      darkSessionStartedRef.current = true;
+      beginPulse();
+    }
+
+    return () => {
+      cancelled = true;
+      if (endTimer !== undefined) window.clearTimeout(endTimer);
+      if (nextTimer !== undefined) window.clearTimeout(nextTimer);
+    };
+  }, [pageVisible, reduceMotion, theme]);
 
   useEffect(() => {
     if (!selectedId || reduceMotion) return;
@@ -335,23 +474,30 @@ export function ForceGraphCanvas({
     const filterPulse = reduceMotion ? 0.5 : (Math.sin(filterPhase * Math.PI * 2) + 1) / 2;
     const solarPhase = (now % 5600) / 5600;
     const solarBreath = reduceMotion ? 0.5 : (Math.sin(solarPhase * Math.PI * 2) + 1) / 2;
+    const beaconFrame = getHomeBeaconFrame(
+      beaconStartedAt === null ? HOME_BEACON_ACTIVE_MS : now - beaconStartedAt,
+      reduceMotion,
+      pageVisible,
+    );
     const renderedRadius = radius * (hovered ? 1.08 : selected ? 1.04 : 1);
     context.save();
 
     if (filterMatch && !node.isSelf) {
       context.beginPath();
       context.arc(node.x, node.y, renderedRadius + (7.5 + filterPulse * 1.5) / scale, 0, Math.PI * 2);
-      context.fillStyle = FILTER_HALO_COLOR[activeFilter];
+      context.fillStyle = palette.filterHalo[activeFilter];
       context.globalAlpha = emphasized ? 0.09 + filterPulse * 0.06 : 0.05;
       context.fill();
     }
 
-    context.globalAlpha = emphasized || visualState === "active" || visualState === "anchor" ? 1 : 0.24;
+    context.globalAlpha = emphasized || visualState === "active" || visualState === "anchor"
+      ? 1
+      : palette.planet.dimmedAlpha;
 
     if (node.strategicRelevance) {
       context.beginPath();
       context.arc(node.x, node.y, renderedRadius + 3.5 / scale, 0, Math.PI * 2);
-      context.strokeStyle = relevanceColor[node.strategicRelevance];
+      context.strokeStyle = palette.relevance[node.strategicRelevance];
       context.lineWidth = (selected || hovered ? 2 : 1.45) / scale;
       context.stroke();
     }
@@ -359,27 +505,41 @@ export function ForceGraphCanvas({
     if (hovered && !selected && !filterMatch) {
       context.beginPath();
       context.arc(node.x, node.y, renderedRadius + 5.5 / scale, 0, Math.PI * 2);
-      context.strokeStyle = "#6b6e70";
+      context.strokeStyle = palette.planet.hoverStroke;
       context.lineWidth = 1.2 / scale;
       context.stroke();
     }
 
-    if (node.visualRole === "solar-anchor") {
-      drawSolarAnchor(
-        context,
-        node.x,
-        node.y,
-        renderedRadius,
-        scale,
-        entranceProgress,
-        solarBreath,
-      );
+    if (node.visualRole === "self-anchor") {
+      if (theme === "dark") {
+        drawHomeWorld(
+          context,
+          node.x,
+          node.y,
+          renderedRadius,
+          scale,
+          entranceProgress,
+          beaconFrame,
+          palette.homeWorld,
+        );
+      } else {
+        drawSolarAnchor(
+          context,
+          node.x,
+          node.y,
+          renderedRadius,
+          scale,
+          entranceProgress,
+          solarBreath,
+          palette.solarAnchor,
+        );
+      }
     } else {
       context.beginPath();
       context.arc(node.x, node.y, renderedRadius, 0, Math.PI * 2);
-      context.fillStyle = selected ? "#315f58" : "#faf9f6";
+      context.fillStyle = selected ? palette.planet.selectedFill : palette.planet.fill;
       context.fill();
-      context.strokeStyle = selected ? "#315f58" : "#6b6e70";
+      context.strokeStyle = selected ? palette.planet.selectedStroke : palette.planet.stroke;
       context.lineWidth = 1.4 / scale;
       context.stroke();
     }
@@ -393,7 +553,7 @@ export function ForceGraphCanvas({
       || (activeFilter === "all" ? globalScale >= 0.65 : globalScale >= 1.25);
     if (showLabel) {
       labelWidthsRef.current.set(node.personId, context.measureText(node.name).width * scale);
-      context.fillStyle = emphasized ? "#1b1d1e" : "#929594";
+      context.fillStyle = emphasized ? palette.label.primary : palette.label.dimmed;
       context.textAlign = "left";
       context.textBaseline = "middle";
       context.fillText(node.name, node.x + renderedRadius + 7 / scale, node.y);
@@ -401,7 +561,7 @@ export function ForceGraphCanvas({
       labelWidthsRef.current.set(node.personId, 0);
     }
     context.restore();
-  }, [activeFilter, activeId, dataset.selfId, hoveredId, isNodeEmphasized, matchingIds, reduceMotion, selectedId]);
+  }, [activeFilter, activeId, beaconStartedAt, dataset.selfId, hoveredId, isNodeEmphasized, matchingIds, pageVisible, palette, reduceMotion, selectedId, theme]);
 
   const handleEngineStop = useCallback(() => {
     if (hasFittedRef.current) return;
@@ -517,6 +677,22 @@ export function ForceGraphCanvas({
   const roleAndTeam = hoveredNode
     ? [hoveredNode.role, hoveredNode.team].filter(Boolean).join(" · ")
     : "";
+  const hasActiveSignal = graphData.links.some((link) => getContinuousParticleCount(
+    link,
+    activeFilter,
+    isLinkEmphasized(link),
+    reduceMotion,
+  ) > 0);
+  const beaconActive = theme === "dark"
+    && beaconStartedAt !== null
+    && !reduceMotion
+    && pageVisible;
+  const continuouslyRedraw = shouldContinuouslyRedrawGraph({
+    hasActiveSignal,
+    beaconActive,
+    pageVisible,
+    reduceMotion,
+  });
 
   return (
     <div
@@ -538,8 +714,8 @@ export function ForceGraphCanvas({
     >
       {size.width > 0 && size.height > 0 && (
         <ForceGraph2D<GraphNode, GraphLink>
-          autoPauseRedraw={activeFilter === "all" || reduceMotion}
-          backgroundColor="#f4f3ef"
+          autoPauseRedraw={!continuouslyRedraw}
+          backgroundColor={palette.canvas}
           cooldownTicks={120}
           d3AlphaDecay={0.035}
           d3VelocityDecay={0.34}
@@ -551,14 +727,26 @@ export function ForceGraphCanvas({
           height={size.height}
           linkColor={(link: LinkObject<GraphNode, GraphLink>) => {
             const emphasized = isLinkEmphasized(link);
-            if (link.kind === "introduced_by") return emphasized ? "rgba(116, 132, 104, 0.72)" : "rgba(116, 132, 104, 0.07)";
-            if (activeId) return emphasized ? "rgba(49, 95, 88, 0.62)" : "rgba(107, 110, 112, 0.06)";
-            if (activeFilter !== "all") return emphasized ? "rgba(49, 95, 88, 0.5)" : "rgba(107, 110, 112, 0.07)";
-            return "rgba(107, 110, 112, 0.52)";
+            if (link.kind === "introduced_by") {
+              return emphasized
+                ? palette.introducedLink.active
+                : palette.introducedLink.dimmed;
+            }
+            if (activeId) {
+              return emphasized
+                ? palette.directLink.active
+                : palette.directLink.activeDimmed;
+            }
+            if (activeFilter !== "all") {
+              return emphasized
+                ? palette.directLink.filtered
+                : palette.directLink.filteredDimmed;
+            }
+            return palette.directLink.idle;
           }}
           linkDirectionalArrowColor={(link: LinkObject<GraphNode, GraphLink>) => isLinkEmphasized(link)
-            ? "rgba(116, 132, 104, 0.82)"
-            : "rgba(116, 132, 104, 0.07)"}
+            ? palette.introducedLink.arrowActive
+            : palette.introducedLink.arrowDimmed}
           linkDirectionalArrowLength={(link: LinkObject<GraphNode, GraphLink>) => link.directed ? 6 : 0}
           linkDirectionalArrowRelPos={0.72}
           linkLineDash={(link: LinkObject<GraphNode, GraphLink>) => link.kind === "introduced_by" ? [5, 4] : null}
@@ -569,8 +757,8 @@ export function ForceGraphCanvas({
             reduceMotion,
           )}
           linkDirectionalParticleColor={(link: LinkObject<GraphNode, GraphLink>) => isSelectedIntroduction(link)
-            ? "rgba(190, 143, 59, 0.98)"
-            : "rgba(91, 116, 98, 0.96)"}
+            ? palette.particle.selected
+            : palette.particle.ambient}
           linkDirectionalParticleSpeed={(link: LinkObject<GraphNode, GraphLink>) => {
             if (link.motion !== "selection-direction" || reduceMotion) return 0;
             return isSelectedIntroduction(link) ? 0.012 : 0.0035;

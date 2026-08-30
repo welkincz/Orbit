@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NetworkWorkspace } from "@/components/network/NetworkWorkspace";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import type { PeopleDataset } from "@/types/person";
 import { makePerson } from "./fixtures/people";
 
@@ -30,6 +31,14 @@ const dataset: PeopleDataset = {
   loadedAt: "2026-08-29T00:00:00.000Z",
 };
 
+function renderWorkspace() {
+  return render(
+    <ThemeProvider>
+      <NetworkWorkspace currentDate="2026-08-29" initialDataset={dataset} />
+    </ThemeProvider>,
+  );
+}
+
 describe("NetworkWorkspace detail sizing", () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => {
@@ -40,7 +49,7 @@ describe("NetworkWorkspace detail sizing", () => {
 
   it("expands to half the workspace and persists the chosen size", async () => {
     const user = userEvent.setup();
-    const { container } = render(<NetworkWorkspace currentDate="2026-08-29" initialDataset={dataset} />);
+    const { container } = renderWorkspace();
 
     await user.click(screen.getByRole("button", { name: /jane doe/i }));
     const workspace = container.querySelector<HTMLElement>(".orbit-workspace")!;
@@ -62,7 +71,7 @@ describe("NetworkWorkspace detail sizing", () => {
       width: 520,
     }));
     const user = userEvent.setup();
-    const { container } = render(<NetworkWorkspace currentDate="2026-08-29" initialDataset={dataset} />);
+    const { container } = renderWorkspace();
 
     await user.click(screen.getByRole("button", { name: /jane doe/i }));
     const workspace = container.querySelector<HTMLElement>(".orbit-workspace")!;
@@ -78,7 +87,7 @@ describe("NetworkWorkspace detail sizing", () => {
       width: 720,
     }));
     const user = userEvent.setup();
-    const { container } = render(<NetworkWorkspace currentDate="2026-08-29" initialDataset={dataset} />);
+    const { container } = renderWorkspace();
 
     await user.click(screen.getByRole("button", { name: /jane doe/i }));
     const workspace = container.querySelector<HTMLElement>(".orbit-workspace")!;
@@ -89,7 +98,7 @@ describe("NetworkWorkspace detail sizing", () => {
   it("expands to half of a large desktop workspace", async () => {
     Object.defineProperty(window, "innerWidth", { configurable: true, value: 1920 });
     const user = userEvent.setup();
-    const { container } = render(<NetworkWorkspace currentDate="2026-08-29" initialDataset={dataset} />);
+    const { container } = renderWorkspace();
 
     await user.click(screen.getByRole("button", { name: /jane doe/i }));
     const workspace = container.querySelector<HTMLElement>(".orbit-workspace")!;
@@ -103,7 +112,7 @@ describe("NetworkWorkspace detail sizing", () => {
       throw new Error("Quota exceeded");
     });
     const user = userEvent.setup();
-    const { container } = render(<NetworkWorkspace currentDate="2026-08-29" initialDataset={dataset} />);
+    const { container } = renderWorkspace();
 
     await user.click(screen.getByRole("button", { name: /jane doe/i }));
     const workspace = container.querySelector<HTMLElement>(".orbit-workspace")!;

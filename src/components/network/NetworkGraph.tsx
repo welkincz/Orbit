@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import { useTheme } from "@/components/theme/ThemeProvider";
 import type { RelationshipFilter } from "@/lib/graph-filters";
 import type { ISODate, PeopleDataset } from "@/types/person";
 import { RelationshipFilterBar } from "./RelationshipFilterBar";
@@ -29,6 +30,7 @@ export function NetworkGraph({
   onSelect,
 }: NetworkGraphProps) {
   const [layoutResetToken, setLayoutResetToken] = useState(0);
+  const { theme } = useTheme();
 
   return (
     <section
@@ -51,6 +53,7 @@ export function NetworkGraph({
         layoutResetToken={layoutResetToken}
         onSelect={onSelect}
         selectedId={selectedId}
+        theme={theme}
       />
     </section>
   );

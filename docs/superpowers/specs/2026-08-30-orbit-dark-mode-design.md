@@ -1,7 +1,7 @@
 # Orbit Dark Mode — Design
 
 Date: 2026-08-30
-Status: Approved in conversation; awaiting written-spec review
+Status: Approved
 
 ## 1. Product intent
 
