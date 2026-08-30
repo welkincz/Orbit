@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import * as graphGeometry from "@/lib/graph-geometry";
 import {
   didPointerDrag,
+  getGraphNodeScreenRadius,
   getGraphPointerTarget,
   isPrimaryPointerActivation,
   type ScreenGraphLink,
@@ -70,5 +72,24 @@ describe("graph pointer geometry", () => {
   it("separates a click from a pan using the movement threshold", () => {
     expect(didPointerDrag({ x: 10, y: 10 }, { x: 13, y: 12 })).toBe(false);
     expect(didPointerDrag({ x: 10, y: 10 }, { x: 15, y: 10 })).toBe(true);
+  });
+});
+
+describe("solar anchor geometry", () => {
+  it("makes the self anchor materially larger than the strongest planet", () => {
+    expect(getGraphNodeScreenRadius(9, false)).toBe(9);
+    expect(getGraphNodeScreenRadius(9, true)).toBe(14.4);
+    expect(getGraphNodeScreenRadius(5, true)).toBe(12.8);
+  });
+
+  it("grows every ray outward from the corona instead of through the sun", () => {
+    const getSolarRayEnd = (
+      graphGeometry as typeof graphGeometry & {
+        getSolarRayEnd?: (radius: number, gap: number, length: number, progress: number) => number;
+      }
+    ).getSolarRayEnd;
+
+    expect(getSolarRayEnd?.(10, 3.2, 6.2, 0)).toBe(13.2);
+    expect(getSolarRayEnd?.(10, 3.2, 6.2, 1)).toBe(19.4);
   });
 });

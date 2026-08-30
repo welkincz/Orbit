@@ -114,10 +114,11 @@ Pan and zoom the map, drag people into useful positions, and select a node to op
 
 Each visual signal has one job:
 
+- The solar anchor represents you at the center of the network.
 - Node size represents relationship strength.
 - The outer rim represents strategic relevance.
 - Solid lines connect you directly to a person.
-- Dashed arrows show introductions between people.
+- Dashed arrows show introductions between people; selecting either person sends one small motion cue in the introduction direction.
 
 ### Focus on the right people
 
