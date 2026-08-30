@@ -246,18 +246,30 @@ describe("PersonDetail", () => {
     expect(screen.getByText("Couldn’t copy path.")).toBeVisible();
   });
 
-  it("unwraps unsupported Markdown without rendering remote images", () => {
+  it("never renders remote images, which would leak a request from a local-first app", () => {
     const { container } = render(
       <MarkdownSection
-        markdown={"# Hidden heading\n\n> Quoted context\n\n![Tracking image](https://example.test/tracker.png)"}
+        markdown={"![Tracking image](https://example.test/tracker.png)"}
         title="Safety"
       />,
     );
 
-    expect(screen.getByText("Hidden heading")).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Hidden heading" })).not.toBeInTheDocument();
-    expect(screen.getByText("Quoted context")).toBeVisible();
-    expect(container.querySelector("blockquote")).toBeNull();
     expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("keeps the structure a person wrote in their own notes", () => {
+    const { container } = render(
+      <MarkdownSection
+        markdown={"#### Decisions\n\n> Quoted context\n\n```\nplan --dry-run\n```"}
+        title="Structure"
+      />,
+    );
+
+    // Notes headings sit under the section's own h3 so the outline stays sane.
+    expect(screen.getByRole("heading", { name: "Decisions", level: 4 })).toBeVisible();
+    expect(container.querySelector("blockquote")).not.toBeNull();
+    expect(screen.getByText("Quoted context")).toBeVisible();
+    expect(container.querySelector("pre")).not.toBeNull();
+    expect(screen.getByText("plan --dry-run")).toBeVisible();
   });
 });

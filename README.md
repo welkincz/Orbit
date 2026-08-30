@@ -125,11 +125,13 @@ Each visual signal has one job:
 The map and sidebar organize people into four overlapping views:
 
 - **Inner Circle:** the relationships you deliberately mark as closest.
-- **Reconnect:** people whose preferred contact cadence is overdue.
+- **Reconnect:** people whose preferred contact cadence is overdue, plus people you have set a cadence for but never contacted (shown as **Never**).
 - **Recent:** people contacted within the last 30 days.
 - **Targets:** relationships you deliberately want to develop.
 
 Selecting a view highlights matching people with a subtle animated halo. Everyone else remains dimmed but visible, so the surrounding relationship context is never lost.
+
+The sidebar shows the same four views as lists. Each sidebar heading is also a button: it carries the count for that view and focuses the map on it. Press the active heading again to return to the whole network.
 
 ### Prepare before reaching out
 
@@ -147,6 +149,8 @@ The card can be widened when you need more reading space. Use **Open Markdown** 
 ### Find anyone quickly
 
 Use the search button or press <kbd>⌘ K</kbd> on macOS / <kbd>Ctrl K</kbd> on Windows and Linux. Search includes names, companies, teams, roles, and tags.
+
+Press <kbd>Esc</kbd> to close the person card; focus returns to the sidebar row you opened it from.
 
 ## How your data is organized
 
@@ -168,7 +172,9 @@ Orbit scans Markdown files directly inside `data/people/`. Exactly one file must
 | `introduced_by` | Optional ID of the person who made the introduction. |
 | `tags` | Optional list used by search. |
 
-Contacts require `relationship_strength` and `strategic_relevance`. The self record does not. Orbit validates records before rendering and shows a file-specific error instead of silently using broken or stale data.
+Contacts require `relationship_strength` and `strategic_relevance`. The self record does not. Orbit validates records before rendering and shows a file-specific error instead of silently using broken or stale data. When several files are invalid, all of them are listed at once so you can fix them in one pass.
+
+Orbit also shows non-blocking warnings under the header, such as a `last_contact` that is older than the newest interaction in the same file.
 
 ### Interaction history
 
@@ -181,6 +187,8 @@ Discussion notes in Markdown.
 ```
 
 Orbit shows valid interactions newest first. A `### Follow up` or `### Follow-up` block is displayed separately from the interaction notes.
+
+Inside a section, Orbit renders paragraphs, lists, headings, quotes, code, horizontal rules, and links. Images are deliberately not rendered: loading a remote image would make a network request on behalf of your private notes.
 
 `last_contact` is the primary date when it exists. Otherwise, Orbit uses the newest valid interaction date. All dates are treated as calendar dates so daylight-saving changes do not shift them.
 
@@ -241,7 +249,7 @@ The relationship map uses a client-only canvas. The sidebar, command palette, an
 - Only direct Markdown files in `data/people/` are scanned.
 - Map positions stay in one browser profile and do not sync between devices.
 - Canvas nodes are not individual keyboard controls; use the sidebar or command palette for keyboard navigation.
-- The **Open Markdown** link depends on VS Code handling `vscode://` links; **Copy path** is the editor-independent fallback.
+- The **Open Markdown** link depends on VS Code handling `vscode://` links; **Copy path** is the editor-independent fallback and is always available.
 
 ## Possible next steps
 

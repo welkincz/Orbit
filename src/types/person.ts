@@ -37,7 +37,6 @@ export interface Person {
   team?: string;
   role?: string;
   relationshipStrength?: RelationshipStrength;
-  relationshipType?: string;
   strategicRelevance?: StrategicRelevance;
   lastContact?: ISODate;
   effectiveLastContact?: ISODate;
@@ -62,7 +61,6 @@ export interface NormalizedFrontmatter {
   team?: string;
   role?: string;
   relationshipStrength?: RelationshipStrength;
-  relationshipType?: string;
   strategicRelevance?: StrategicRelevance;
   lastContact?: ISODate;
   desiredCadenceDays?: number;
