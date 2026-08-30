@@ -409,12 +409,56 @@ html[data-theme="dark"] .theme-toggle__orb::before {
 
 .relationship-section__heading {
   margin: 0 8px 7px;
-  color: var(--muted);
   font-size: 10px;
   font-weight: 720;
   letter-spacing: 0.095em;
   line-height: 1.4;
   text-transform: uppercase;
+}
+
+.relationship-section__toggle {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  padding: 2px 4px;
+  margin: 0 -4px;
+  color: var(--muted);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+}
+
+.relationship-section__toggle:hover {
+  background: var(--row-hover);
+  color: var(--ink);
+}
+
+.relationship-section__toggle[aria-pressed="true"] {
+  background: var(--selected-soft);
+  color: var(--selected);
+}
+
+.relationship-section__count {
+  flex: 0 0 auto;
+  color: var(--faint);
+  font-weight: 620;
+  letter-spacing: 0.02em;
+}
+
+.relationship-section__toggle[aria-pressed="true"] .relationship-section__count {
+  color: var(--selected);
+}
+
+.relationship-section[data-active] {
+  border-radius: var(--radius-md);
+  background: var(--selected-soft);
 }
 
 .relationship-section__empty {
@@ -427,6 +471,12 @@ html[data-theme="dark"] .theme-toggle__orb::before {
 .relationship-divider {
   margin: 0 8px;
   border-color: var(--line);
+}
+
+.relationship-row__never {
+  color: var(--relevance-high);
+  font-variant-numeric: normal;
+  letter-spacing: 0.02em;
 }
 
 .relationship-row {

@@ -227,8 +227,10 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
         style={workspaceStyle}
       >
         <RelationshipSidebar
+          activeFilter={activeFilter}
           currentDate={currentDate}
           dataset={initialDataset}
+          onFilterChange={setActiveFilter}
           onSelect={selectPerson}
           selectedId={selectedId}
         />

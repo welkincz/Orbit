@@ -36,7 +36,7 @@ describe("relationship selectors", () => {
     ], "2026-08-27"))).toEqual(["today", "day-30"]);
   });
 
-  it("excludes a never-met target from reconnect", () => {
+  it("includes a never-contacted person with a cadence, marked as never contacted", () => {
     const target = makePerson({
       id: "target",
       target: true,
@@ -44,7 +44,29 @@ describe("relationship selectors", () => {
       desiredCadenceDays: 30,
     });
 
-    expect(getReconnectCandidates([target], "2026-08-27")).toEqual([]);
+    expect(getReconnectCandidates([target], "2026-08-27"))
+      .toEqual([{ person: target, overdueDays: null }]);
+  });
+
+  it("still excludes a never-contacted person without a cadence", () => {
+    const drifting = makePerson({
+      id: "drifting",
+      effectiveLastContact: undefined,
+      desiredCadenceDays: undefined,
+    });
+
+    expect(getReconnectCandidates([drifting], "2026-08-27")).toEqual([]);
+  });
+
+  it("lists never-contacted people before overdue ones, ranked by strategic relevance", () => {
+    const people = [
+      makePerson({ id: "overdue", name: "Overdue", effectiveLastContact: "2026-01-01", desiredCadenceDays: 30 }),
+      makePerson({ id: "never-low", name: "Never Low", strategicRelevance: "low", desiredCadenceDays: 30, effectiveLastContact: undefined }),
+      makePerson({ id: "never-high", name: "Never High", strategicRelevance: "high", desiredCadenceDays: 30, effectiveLastContact: undefined }),
+    ];
+
+    expect(ids(getReconnectCandidates(people, "2026-08-27").map(({ person }) => person)))
+      .toEqual(["never-high", "never-low", "overdue"]);
   });
 
   it("sorts inner-circle contacts by strength, then last contact, then name", () => {

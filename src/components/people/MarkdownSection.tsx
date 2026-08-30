@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import { headingId } from "@/lib/format";
 
 interface MarkdownSectionProps {
   title: string;
@@ -51,9 +52,11 @@ export function MarkdownContent({ markdown }: MarkdownContentProps) {
 export function MarkdownSection({ title, markdown }: MarkdownSectionProps) {
   if (!markdown.trim()) return null;
 
+  const sectionId = headingId(title);
+
   return (
-    <section aria-labelledby={`${title.toLowerCase().replaceAll(" ", "-")}-heading`} className="detail-section">
-      <h3 className="detail-section__heading" id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}>
+    <section aria-labelledby={sectionId} className="detail-section">
+      <h3 className="detail-section__heading" id={sectionId}>
         {title}
       </h3>
       <MarkdownContent markdown={markdown} />

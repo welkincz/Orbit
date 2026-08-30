@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
+import { headingId, titleCase } from "@/lib/format";
+import type { RelationshipFilter } from "@/lib/graph-filters";
 import {
   getInnerCircle,
   getRecentContacts,
@@ -16,7 +18,9 @@ interface RelationshipSidebarProps {
   dataset: PeopleDataset;
   currentDate: ISODate;
   selectedId: string | null;
+  activeFilter?: RelationshipFilter;
   onSelect: (id: string) => void;
+  onFilterChange?: (filter: RelationshipFilter) => void;
 }
 
 interface PersonRowProps {
@@ -47,37 +51,69 @@ function PersonRow({ person, selectedId, onSelect, secondary }: PersonRowProps) 
   );
 }
 
+interface SidebarSectionProps {
+  heading: string;
+  emptyMessage: string;
+  filter: Exclude<RelationshipFilter, "all">;
+  activeFilter: RelationshipFilter;
+  onFilterChange?: (filter: RelationshipFilter) => void;
+  children: React.ReactNode[];
+}
+
 function SidebarSection({
   heading,
   emptyMessage,
+  filter,
+  activeFilter,
+  onFilterChange,
   children,
-}: {
-  heading: string;
-  emptyMessage: string;
-  children: React.ReactNode[];
-}) {
-  const headingId = `${heading.toLowerCase().replaceAll(" ", "-")}-heading`;
+}: SidebarSectionProps) {
+  const sectionId = headingId(heading);
+  const active = activeFilter === filter;
+
   return (
-    <section aria-labelledby={headingId} className="relationship-section">
-      <h2 className="relationship-section__heading" id={headingId}>{heading}</h2>
+    <section aria-labelledby={sectionId} className="relationship-section" data-active={active || undefined}>
+      <h2 className="relationship-section__heading" id={sectionId}>
+        <button
+          aria-pressed={active}
+          className="relationship-section__toggle"
+          onClick={() => onFilterChange?.(active ? "all" : filter)}
+          title={active ? `Show the whole network again` : `Focus the map on ${heading}`}
+          type="button"
+        >
+          <span className="relationship-section__label">{heading}</span>
+          <span className="relationship-section__count tabular">{children.length}</span>
+        </button>
+      </h2>
       {children.length > 0 ? children : <p className="relationship-section__empty">{emptyMessage}</p>}
     </section>
   );
 }
 
 function reconnectRow(candidate: ReconnectCandidate, selectedId: string | null, onSelect: (id: string) => void) {
+  const secondary = candidate.overdueDays === null
+    ? <span className="relationship-row__never" title="Not yet contacted">Never</span>
+    : <span title={`${candidate.overdueDays} days overdue`}>{candidate.overdueDays}d</span>;
+
   return (
     <PersonRow
       key={candidate.person.id}
       onSelect={onSelect}
       person={candidate.person}
-      secondary={<span title={`${candidate.overdueDays} days overdue`}>{candidate.overdueDays}d</span>}
+      secondary={secondary}
       selectedId={selectedId}
     />
   );
 }
 
-export function RelationshipSidebar({ dataset, currentDate, selectedId, onSelect }: RelationshipSidebarProps) {
+export function RelationshipSidebar({
+  dataset,
+  currentDate,
+  selectedId,
+  activeFilter = "all",
+  onSelect,
+  onFilterChange,
+}: RelationshipSidebarProps) {
   const innerCircle = useMemo(() => getInnerCircle(dataset.people), [dataset.people]);
   const reconnectCandidates = useMemo(
     () => getReconnectCandidates(dataset.people, currentDate),
@@ -89,10 +125,17 @@ export function RelationshipSidebar({ dataset, currentDate, selectedId, onSelect
   );
   const targets = useMemo(() => getTargets(dataset.people), [dataset.people]);
 
+  const sectionProps = { activeFilter, onFilterChange };
+
   return (
     <aside aria-label="Relationship views" className="relationship-sidebar">
       <div className="relationship-sidebar__content">
-        <SidebarSection emptyMessage="No inner-circle contacts." heading="Inner circle">
+        <SidebarSection
+          {...sectionProps}
+          emptyMessage="No inner-circle contacts."
+          filter="inner-circle"
+          heading="Inner circle"
+        >
           {innerCircle.map((person) => (
             <PersonRow
               key={person.id}
@@ -104,11 +147,21 @@ export function RelationshipSidebar({ dataset, currentDate, selectedId, onSelect
           ))}
         </SidebarSection>
         <Separator className="relationship-divider" />
-        <SidebarSection emptyMessage="You're caught up." heading="Reconnect">
+        <SidebarSection
+          {...sectionProps}
+          emptyMessage="You're caught up."
+          filter="reconnect"
+          heading="Reconnect"
+        >
           {reconnectCandidates.map((candidate) => reconnectRow(candidate, selectedId, onSelect))}
         </SidebarSection>
         <Separator className="relationship-divider" />
-        <SidebarSection emptyMessage="No recent conversations." heading="Recent conversations">
+        <SidebarSection
+          {...sectionProps}
+          emptyMessage="No recent conversations."
+          filter="recent"
+          heading="Recent conversations"
+        >
           {recentContacts.map((person) => (
             <PersonRow
               key={person.id}
@@ -120,15 +173,18 @@ export function RelationshipSidebar({ dataset, currentDate, selectedId, onSelect
           ))}
         </SidebarSection>
         <Separator className="relationship-divider" />
-        <SidebarSection emptyMessage="No targets yet." heading="Targets">
+        <SidebarSection
+          {...sectionProps}
+          emptyMessage="No targets yet."
+          filter="targets"
+          heading="Targets"
+        >
           {targets.map((person) => (
             <PersonRow
               key={person.id}
               onSelect={onSelect}
               person={person}
-              secondary={person.strategicRelevance
-                ? `${person.strategicRelevance[0].toUpperCase()}${person.strategicRelevance.slice(1)}`
-                : ""}
+              secondary={person.strategicRelevance ? titleCase(person.strategicRelevance) : ""}
               selectedId={selectedId}
             />
           ))}

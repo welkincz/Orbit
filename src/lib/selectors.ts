@@ -3,7 +3,8 @@ import type { ISODate, Person, StrategicRelevance } from "@/types/person";
 
 export interface ReconnectCandidate {
   person: Person;
-  overdueDays: number;
+  /** Days past the desired cadence, or null when the person has never been contacted. */
+  overdueDays: number | null;
 }
 
 const relevanceRank: Record<StrategicRelevance, number> = {
@@ -42,20 +43,32 @@ export function getReconnectCandidates(
   return people
     .filter((person) => (
       person.type === "person"
-      && person.effectiveLastContact
       && person.desiredCadenceDays !== undefined
       && person.desiredCadenceDays > 0
     ))
-    .map((person) => ({
+    .map((person): ReconnectCandidate => ({
       person,
-      overdueDays: calendarDaysBetween(person.effectiveLastContact!, currentDate) - person.desiredCadenceDays!,
+      overdueDays: person.effectiveLastContact
+        ? calendarDaysBetween(person.effectiveLastContact, currentDate) - person.desiredCadenceDays!
+        : null,
     }))
-    .filter((candidate) => candidate.overdueDays > 0)
-    .toSorted((a, b) => (
-      b.overdueDays - a.overdueDays
-      || (b.person.relationshipStrength ?? 0) - (a.person.relationshipStrength ?? 0)
-      || a.person.name.localeCompare(b.person.name)
-    ));
+    .filter((candidate) => candidate.overdueDays === null || candidate.overdueDays > 0)
+    .toSorted((a, b) => {
+      // Never-contacted relationships lead: they have no measurable overdue value,
+      // and an intended connection that never started is the easiest one to lose.
+      if ((a.overdueDays === null) !== (b.overdueDays === null)) {
+        return a.overdueDays === null ? -1 : 1;
+      }
+      if (a.overdueDays === null || b.overdueDays === null) {
+        return relevanceRank[b.person.strategicRelevance ?? "low"]
+          - relevanceRank[a.person.strategicRelevance ?? "low"]
+          || (b.person.relationshipStrength ?? 0) - (a.person.relationshipStrength ?? 0)
+          || a.person.name.localeCompare(b.person.name);
+      }
+      return b.overdueDays - a.overdueDays
+        || (b.person.relationshipStrength ?? 0) - (a.person.relationshipStrength ?? 0)
+        || a.person.name.localeCompare(b.person.name);
+    });
 }
 
 export function getTargets(people: Person[]): Person[] {

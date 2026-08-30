@@ -7,6 +7,7 @@ import ForceGraph2D, {
   type NodeObject,
 } from "react-force-graph-2d";
 import { useReducedMotion } from "motion/react";
+import { titleCase } from "@/lib/format";
 import {
   didPointerDrag,
   getGraphNodeScreenRadius,
@@ -75,10 +76,6 @@ const SOLAR_ENTRANCE_DURATION_MS = 650;
 function endpointId(endpoint: GraphLink["source"] | undefined): string | undefined {
   if (typeof endpoint === "string") return endpoint;
   return endpoint?.id;
-}
-
-function titleCase(value: string): string {
-  return `${value[0].toUpperCase()}${value.slice(1)}`;
 }
 
 function drawSolarAnchor(

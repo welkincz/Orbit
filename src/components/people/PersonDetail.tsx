@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Copy, FilePenLine, Maximize2, Minimize2, X } from "lucide-react";
+import { titleCase } from "@/lib/format";
 import { toVscodeFileHref } from "@/lib/local-files";
 import type { ISODate, Person } from "@/types/person";
 import { ConversationPrepPanel } from "./ConversationPrep";
@@ -30,10 +31,6 @@ function formatDate(date: ISODate): string {
     timeZone: "UTC",
     year: "numeric",
   }).format(new Date(Date.UTC(year, month - 1, day)));
-}
-
-function titleCase(value?: string): string | undefined {
-  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : undefined;
 }
 
 export function PersonDetail(props: PersonDetailProps) {
