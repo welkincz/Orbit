@@ -60,6 +60,44 @@ describe("PersonDetail", () => {
     expect(screen.getByRole("button", { name: "Copy path" })).toBeVisible();
   });
 
+  it("links Open Markdown for a Windows source path", () => {
+    const win = makePerson({ id: "win", name: "Win Person", sourcePath: "C:\\Users\\Charlie\\Orbit\\data\\people\\win.md" });
+    render(<PersonDetail person={win} people={[win]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("link", { name: "Open Markdown" })).toHaveAttribute(
+      "href",
+      "vscode://file/C:/Users/Charlie/Orbit/data/people/win.md",
+    );
+  });
+
+  it("keeps Copy path usable when the source path cannot open in VS Code", () => {
+    const odd = makePerson({ id: "odd", name: "Odd Person", sourcePath: "data/people/odd.md", sourceRelativePath: "data/people/odd.md" });
+    render(<PersonDetail person={odd} people={[odd]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.getByRole("heading", { name: "Odd Person" })).toBeVisible();
+    expect(screen.queryByText("Open Markdown")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy path" })).toBeVisible();
+    expect(screen.getByText("data/people/odd.md")).toBeVisible();
+  });
+
+  it("warns inline when frontmatter last_contact is older than the newest interaction", () => {
+    const stale = makePerson({
+      id: "stale",
+      name: "Stale Person",
+      effectiveLastContact: "2026-01-01",
+      diagnostics: [{
+        level: "warning",
+        code: "last-contact-mismatch",
+        message: "Frontmatter last_contact 2026-01-01 is older than interaction 2026-06-01.",
+        sourceRelativePath: "data/people/stale.md",
+      }],
+    });
+
+    render(<PersonDetail person={stale} people={[stale]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+
+    expect(screen.getByText(/older than interaction 2026-06-01/)).toBeVisible();
+  });
+
   it("puts actionable Conversation Prep before interaction history", async () => {
     const user = userEvent.setup();
     render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
@@ -133,6 +171,7 @@ describe("PersonDetail", () => {
 
   it("resizes from the left edge with pointer and keyboard controls", () => {
     const onResize = vi.fn();
+    const onResizeCommit = vi.fn();
     const onResetWidth = vi.fn();
     render(
       <PersonDetail
@@ -143,15 +182,23 @@ describe("PersonDetail", () => {
         onClose={vi.fn()}
         onResetWidth={onResetWidth}
         onResize={onResize}
+        onResizeCommit={onResizeCommit}
       />,
     );
 
     const handle = screen.getByRole("separator", { name: "Resize details" });
     expect(handle).toHaveAttribute("aria-valuenow", "480");
     fireEvent.pointerDown(handle, { clientX: 600, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 560, pointerId: 1 });
     fireEvent.pointerMove(handle, { clientX: 520, pointerId: 1 });
+
+    // Dragging stays transient so it never writes to storage per pointer event.
+    expect(onResize).toHaveBeenCalledTimes(2);
+    expect(onResize).toHaveBeenLastCalledWith(560, { persist: false });
+    expect(onResizeCommit).not.toHaveBeenCalled();
+
     fireEvent.pointerUp(handle, { pointerId: 1 });
-    expect(onResize).toHaveBeenLastCalledWith(560);
+    expect(onResizeCommit).toHaveBeenCalledTimes(1);
 
     fireEvent.keyDown(handle, { key: "ArrowLeft" });
     expect(onResize).toHaveBeenLastCalledWith(504);
@@ -199,18 +246,30 @@ describe("PersonDetail", () => {
     expect(screen.getByText("Couldn’t copy path.")).toBeVisible();
   });
 
-  it("unwraps unsupported Markdown without rendering remote images", () => {
+  it("never renders remote images, which would leak a request from a local-first app", () => {
     const { container } = render(
       <MarkdownSection
-        markdown={"# Hidden heading\n\n> Quoted context\n\n![Tracking image](https://example.test/tracker.png)"}
+        markdown={"![Tracking image](https://example.test/tracker.png)"}
         title="Safety"
       />,
     );
 
-    expect(screen.getByText("Hidden heading")).toBeVisible();
-    expect(screen.queryByRole("heading", { name: "Hidden heading" })).not.toBeInTheDocument();
-    expect(screen.getByText("Quoted context")).toBeVisible();
-    expect(container.querySelector("blockquote")).toBeNull();
     expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("keeps the structure a person wrote in their own notes", () => {
+    const { container } = render(
+      <MarkdownSection
+        markdown={"#### Decisions\n\n> Quoted context\n\n```\nplan --dry-run\n```"}
+        title="Structure"
+      />,
+    );
+
+    // Notes headings sit under the section's own h3 so the outline stays sane.
+    expect(screen.getByRole("heading", { name: "Decisions", level: 4 })).toBeVisible();
+    expect(container.querySelector("blockquote")).not.toBeNull();
+    expect(screen.getByText("Quoted context")).toBeVisible();
+    expect(container.querySelector("pre")).not.toBeNull();
+    expect(screen.getByText("plan --dry-run")).toBeVisible();
   });
 });

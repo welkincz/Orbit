@@ -25,25 +25,6 @@ Priya leads the kind of platform organization Charlie wants to understand.
 
 Priya is an intentional future connection; we have not met, so there are no interactions recorded yet.
 
-## Conversation Prep
-
-### Their world
-
-Priya runs a large data platform organization; nothing here is first-hand yet, so treat it as background to confirm rather than fact.
-
-### What they care about
-
-- Not yet known — worth learning before asking for anything
-
-### Remember
-
-- We have not met; a warm introduction matters more than a good pitch
-
-### Next conversation
-
-- Ask Maya or Owen whether an introduction would be welcome
-- Prepare one specific, genuine question rather than a general request
-
 ### Follow up
 
 - Find an appropriate warm introduction

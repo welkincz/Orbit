@@ -93,11 +93,12 @@ describe("graph relationship motion", () => {
   });
 
   it.each([
-    { name: "rests with no active motion", hasActiveSignal: false, beaconActive: false, pageVisible: true, reduceMotion: false, expected: false },
-    { name: "redraws an eligible semantic signal", hasActiveSignal: true, beaconActive: false, pageVisible: true, reduceMotion: false, expected: true },
-    { name: "redraws the short beacon window", hasActiveSignal: false, beaconActive: true, pageVisible: true, reduceMotion: false, expected: true },
-    { name: "pauses all motion when hidden", hasActiveSignal: true, beaconActive: true, pageVisible: false, reduceMotion: false, expected: false },
-    { name: "pauses all motion for reduced motion", hasActiveSignal: true, beaconActive: true, pageVisible: true, reduceMotion: true, expected: false },
+    { name: "rests with no active motion", hasActiveSignal: false, beaconActive: false, filterActive: false, pageVisible: true, reduceMotion: false, expected: false },
+    { name: "redraws an eligible semantic signal", hasActiveSignal: true, beaconActive: false, filterActive: false, pageVisible: true, reduceMotion: false, expected: true },
+    { name: "redraws the short beacon window", hasActiveSignal: false, beaconActive: true, filterActive: false, pageVisible: true, reduceMotion: false, expected: true },
+    { name: "redraws while a relationship filter animates its halo", hasActiveSignal: false, beaconActive: false, filterActive: true, pageVisible: true, reduceMotion: false, expected: true },
+    { name: "pauses all motion when hidden", hasActiveSignal: true, beaconActive: true, filterActive: true, pageVisible: false, reduceMotion: false, expected: false },
+    { name: "pauses all motion for reduced motion", hasActiveSignal: true, beaconActive: true, filterActive: true, pageVisible: true, reduceMotion: true, expected: false },
   ])("$name", ({ expected, ...options }) => {
     expect(shouldContinuouslyRedrawGraph(options)).toBe(expected);
   });

@@ -27,25 +27,6 @@ Elise bridges research prototypes and production engineering.
 
 Lena introduced us because Elise has lived through the handoff problems that appear between a promising prototype and a supported product.
 
-## Conversation Prep
-
-### Their world
-
-Elise's research engineering team is trying to move results into production without becoming a service team.
-
-### What they care about
-
-- Research work that survives the handoff to a product team
-- Keeping a research agenda while shipping
-
-### Remember
-
-- Lena made this introduction
-
-### Next conversation
-
-- Ask how the last research handoff went
-
 ## Interactions
 
 ### 2026-08-14 — Coffee chat

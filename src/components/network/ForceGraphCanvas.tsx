@@ -7,7 +7,9 @@ import ForceGraph2D, {
   type NodeObject,
 } from "react-force-graph-2d";
 import { useReducedMotion } from "motion/react";
+import { titleCase } from "@/lib/format";
 import {
+  createScreenSceneCache,
   didPointerDrag,
   getGraphNodeScreenRadius,
   getGraphPointerTarget,
@@ -16,6 +18,7 @@ import {
   type GraphPoint,
   type ScreenGraphLink,
   type ScreenGraphNode,
+  type ScreenGraphScene,
 } from "@/lib/graph-geometry";
 import {
   buildGraphModel,
@@ -41,6 +44,7 @@ import {
 import {
   clearGraphLayout,
   readGraphLayout,
+  selectGraphLayout,
   writeGraphLayout,
   type GraphLayout,
 } from "@/lib/graph-layout";
@@ -75,10 +79,6 @@ const SOLAR_ENTRANCE_DURATION_MS = 650;
 function endpointId(endpoint: GraphLink["source"] | undefined): string | undefined {
   if (typeof endpoint === "string") return endpoint;
   return endpoint?.id;
-}
-
-function titleCase(value: string): string {
-  return `${value[0].toUpperCase()}${value.slice(1)}`;
 }
 
 function drawSolarAnchor(
@@ -255,6 +255,8 @@ export function ForceGraphCanvas({
   const pointerDownRef = useRef<TooltipCoordinates | null>(null);
   const latestPointerRef = useRef<TooltipCoordinates | null>(null);
   const labelWidthsRef = useRef(new Map<string, number>());
+  const sceneCacheRef = useRef(createScreenSceneCache());
+  const sceneVersionRef = useRef(0);
   const draggedRef = useRef(false);
   const layoutRef = useRef<GraphLayout>({});
   const entranceStartedAtRef = useRef<number | null>(null);
@@ -362,12 +364,16 @@ export function ForceGraphCanvas({
 
   useLayoutEffect(() => {
     const validIds = new Set(graphData.nodes.map(({ personId }) => personId));
-    const layout = readGraphLayout(browserStorage(), validIds);
+    // Keep the full stored layout so people who are not loaded right now keep
+    // their positions the next time a drag writes the map back.
+    const layout = readGraphLayout(browserStorage());
+    const applicable = selectGraphLayout(layout, validIds);
     layoutRef.current = layout;
     hasFittedRef.current = false;
+    sceneVersionRef.current += 1;
 
     graphData.nodes.forEach((node) => {
-      const position = layout[node.personId];
+      const position = applicable[node.personId];
       if (!position) return;
       node.x = position.x;
       node.y = position.y;
@@ -414,6 +420,7 @@ export function ForceGraphCanvas({
       node.fy = undefined;
     });
     hasFittedRef.current = false;
+    sceneVersionRef.current += 1;
     graphRef.current?.d3ReheatSimulation();
   }, [graphData.nodes, layoutResetToken]);
 
@@ -449,6 +456,24 @@ export function ForceGraphCanvas({
     return endpointId(link.source) === selectedId || endpointId(link.target) === selectedId;
   }, [selectedId]);
 
+  const hasActiveSignal = graphData.links.some((link) => getContinuousParticleCount(
+    link,
+    activeFilter,
+    isLinkEmphasized(link),
+    reduceMotion,
+  ) > 0);
+  const beaconActive = theme === "dark"
+    && beaconStartedAt !== null
+    && !reduceMotion
+    && pageVisible;
+  const continuouslyRedraw = shouldContinuouslyRedrawGraph({
+    hasActiveSignal,
+    beaconActive,
+    filterActive: activeFilter !== "all",
+    pageVisible,
+    reduceMotion,
+  });
+
   const paintNode = useCallback((node: NodeObject<GraphNode>, context: CanvasRenderingContext2D, globalScale: number) => {
     if (node.x === undefined || node.y === undefined) return;
 
@@ -470,10 +495,11 @@ export function ForceGraphCanvas({
     const entranceProgress = reduceMotion
       ? 1
       : Math.min(1, (now - entranceStartedAtRef.current) / SOLAR_ENTRANCE_DURATION_MS);
+    const animated = !reduceMotion && continuouslyRedraw;
     const filterPhase = (now % 3600) / 3600;
-    const filterPulse = reduceMotion ? 0.5 : (Math.sin(filterPhase * Math.PI * 2) + 1) / 2;
+    const filterPulse = animated ? (Math.sin(filterPhase * Math.PI * 2) + 1) / 2 : 0.5;
     const solarPhase = (now % 5600) / 5600;
-    const solarBreath = reduceMotion ? 0.5 : (Math.sin(solarPhase * Math.PI * 2) + 1) / 2;
+    const solarBreath = animated ? (Math.sin(solarPhase * Math.PI * 2) + 1) / 2 : 0.5;
     const beaconFrame = getHomeBeaconFrame(
       beaconStartedAt === null ? HOME_BEACON_ACTIVE_MS : now - beaconStartedAt,
       reduceMotion,
@@ -552,16 +578,21 @@ export function ForceGraphCanvas({
       || visualState === "matching"
       || (activeFilter === "all" ? globalScale >= 0.65 : globalScale >= 1.25);
     if (showLabel) {
-      labelWidthsRef.current.set(node.personId, context.measureText(node.name).width * scale);
+      const measured = context.measureText(node.name).width * scale;
+      if (labelWidthsRef.current.get(node.personId) !== measured) {
+        labelWidthsRef.current.set(node.personId, measured);
+        sceneVersionRef.current += 1;
+      }
       context.fillStyle = emphasized ? palette.label.primary : palette.label.dimmed;
       context.textAlign = "left";
       context.textBaseline = "middle";
       context.fillText(node.name, node.x + renderedRadius + 7 / scale, node.y);
-    } else {
+    } else if (labelWidthsRef.current.get(node.personId) !== 0) {
       labelWidthsRef.current.set(node.personId, 0);
+      sceneVersionRef.current += 1;
     }
     context.restore();
-  }, [activeFilter, activeId, beaconStartedAt, dataset.selfId, hoveredId, isNodeEmphasized, matchingIds, pageVisible, palette, reduceMotion, selectedId, theme]);
+  }, [activeFilter, activeId, beaconStartedAt, continuouslyRedraw, dataset.selfId, hoveredId, isNodeEmphasized, matchingIds, pageVisible, palette, reduceMotion, selectedId, theme]);
 
   const handleEngineStop = useCallback(() => {
     if (hasFittedRef.current) return;
@@ -570,9 +601,13 @@ export function ForceGraphCanvas({
     graphRef.current?.zoomToFit(reduceMotion ? 0 : 380, 52);
   }, []);
 
-  const getPointerTargetAt = useCallback((coordinates: TooltipCoordinates) => {
+  const invalidateScene = useCallback(() => {
+    sceneVersionRef.current += 1;
+  }, []);
+
+  const buildScene = useCallback((): ScreenGraphScene => {
     const graph = graphRef.current;
-    if (!graph) return { kind: "background" } as const;
+    if (!graph) return { nodes: [], links: [] };
 
     const nodes = graphData.nodes.flatMap((node): ScreenGraphNode[] => {
       if (node.x === undefined || node.y === undefined) return [];
@@ -598,8 +633,14 @@ export function ForceGraphCanvas({
       }];
     });
 
-    return getGraphPointerTarget(coordinates, nodes, links);
+    return { nodes, links };
   }, [graphData.links, graphData.nodes]);
+
+  const getPointerTargetAt = useCallback((coordinates: TooltipCoordinates) => {
+    if (!graphRef.current) return { kind: "background" } as const;
+    const scene = sceneCacheRef.current.read(sceneVersionRef.current, buildScene);
+    return getGraphPointerTarget(coordinates, scene.nodes, scene.links);
+  }, [buildScene]);
 
   const updateHoverAt = useCallback((coordinates: GraphPoint) => {
     const target = getPointerTargetAt(coordinates);
@@ -645,15 +686,25 @@ export function ForceGraphCanvas({
   }, [getPointerCoordinates, getPointerTargetAt, onSelect]);
 
   const handleZoom = useCallback(() => {
+    invalidateScene();
     setHoveredId(null);
-  }, []);
+  }, [invalidateScene]);
+
+  const handleEngineTick = useCallback(() => {
+    invalidateScene();
+  }, [invalidateScene]);
 
   const handleZoomEnd = useCallback(() => {
     const latestPointer = latestPointerRef.current;
     if (latestPointer) updateHoverAt(latestPointer);
   }, [updateHoverAt]);
 
+  const handleNodeDrag = useCallback(() => {
+    invalidateScene();
+  }, [invalidateScene]);
+
   const handleNodeDragEnd = useCallback((node: NodeObject<GraphNode>) => {
+    invalidateScene();
     if (!Number.isFinite(node.x) || !Number.isFinite(node.y)) return;
     const x = node.x!;
     const y = node.y!;
@@ -664,7 +715,7 @@ export function ForceGraphCanvas({
       [node.personId]: { x, y },
     };
     writeGraphLayout(browserStorage(), layoutRef.current);
-  }, []);
+  }, [invalidateScene]);
 
   const tooltipX = Math.min(
     Math.max(8, tooltipCoordinates.x + 14),
@@ -677,23 +728,6 @@ export function ForceGraphCanvas({
   const roleAndTeam = hoveredNode
     ? [hoveredNode.role, hoveredNode.team].filter(Boolean).join(" · ")
     : "";
-  const hasActiveSignal = graphData.links.some((link) => getContinuousParticleCount(
-    link,
-    activeFilter,
-    isLinkEmphasized(link),
-    reduceMotion,
-  ) > 0);
-  const beaconActive = theme === "dark"
-    && beaconStartedAt !== null
-    && !reduceMotion
-    && pageVisible;
-  const continuouslyRedraw = shouldContinuouslyRedrawGraph({
-    hasActiveSignal,
-    beaconActive,
-    pageVisible,
-    reduceMotion,
-  });
-
   return (
     <div
       className="orbit-graph-canvas"
@@ -773,6 +807,8 @@ export function ForceGraphCanvas({
           nodeCanvasObject={paintNode}
           nodeLabel={() => ""}
           onEngineStop={handleEngineStop}
+          onEngineTick={handleEngineTick}
+          onNodeDrag={handleNodeDrag}
           onNodeDragEnd={handleNodeDragEnd}
           onZoom={handleZoom}
           onZoomEnd={handleZoomEnd}
@@ -791,7 +827,9 @@ export function ForceGraphCanvas({
           {roleAndTeam && <p className="graph-tooltip__context">{roleAndTeam}</p>}
           {!hoveredNode.isSelf && (
             <div className="graph-tooltip__meta">
-              <p>Relationship {hoveredNode.strength - 4}/5</p>
+              {hoveredNode.relationshipStrength !== undefined && (
+                <p>Relationship {hoveredNode.relationshipStrength}/5</p>
+              )}
               {hoveredNode.strategicRelevance && (
                 <p>Strategic relevance {titleCase(hoveredNode.strategicRelevance)}</p>
               )}

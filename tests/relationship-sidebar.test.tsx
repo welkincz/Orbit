@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { RelationshipSidebar } from "@/components/people/RelationshipSidebar";
 import type { PeopleDataset } from "@/types/person";
 import { makePerson } from "./fixtures/people";
@@ -27,6 +27,8 @@ const datasetWithOverlappingJane: PeopleDataset = {
 };
 
 describe("RelationshipSidebar", () => {
+  afterEach(cleanup);
+
   it("keeps one person in every matching derived group and selects the clicked row", async () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
@@ -74,5 +76,73 @@ describe("RelationshipSidebar", () => {
     expect(screen.getByText("You're caught up.")).toBeVisible();
     expect(screen.getByText("No recent conversations.")).toBeVisible();
     expect(screen.getByText("No targets yet.")).toBeVisible();
+  });
+
+  it("labels a never-contacted reconnect candidate instead of showing overdue days", () => {
+    const never = makePerson({
+      id: "never",
+      name: "Never Met",
+      desiredCadenceDays: 30,
+      effectiveLastContact: undefined,
+      strategicRelevance: "high",
+    });
+
+    render(
+      <RelationshipSidebar
+        currentDate="2026-08-29"
+        dataset={{ ...datasetWithOverlappingJane, people: [...datasetWithOverlappingJane.people, never] }}
+        onSelect={vi.fn()}
+        selectedId={null}
+      />,
+    );
+
+    const row = screen.getByRole("button", { name: /never met/i });
+    expect(within(row).getByText("Never")).toBeVisible();
+    expect(within(row).queryByText(/\dd$/)).not.toBeInTheDocument();
+  });
+
+  it("shows a count per section and drives the map filter from the section heading", async () => {
+    const user = userEvent.setup();
+    const onFilterChange = vi.fn();
+
+    render(
+      <RelationshipSidebar
+        activeFilter="all"
+        currentDate="2026-08-27"
+        dataset={datasetWithOverlappingJane}
+        onFilterChange={onFilterChange}
+        onSelect={vi.fn()}
+        selectedId={null}
+      />,
+    );
+
+    const innerCircle = screen.getByRole("button", { name: /inner circle/i });
+    expect(within(innerCircle).getByText("1")).toBeVisible();
+    expect(innerCircle).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(innerCircle);
+    expect(onFilterChange).toHaveBeenCalledWith("inner-circle");
+  });
+
+  it("marks the active section and returns to all when it is pressed again", async () => {
+    const user = userEvent.setup();
+    const onFilterChange = vi.fn();
+
+    render(
+      <RelationshipSidebar
+        activeFilter="targets"
+        currentDate="2026-08-27"
+        dataset={datasetWithOverlappingJane}
+        onFilterChange={onFilterChange}
+        onSelect={vi.fn()}
+        selectedId={null}
+      />,
+    );
+
+    const targets = screen.getByRole("button", { name: /targets/i });
+    expect(targets).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(targets);
+    expect(onFilterChange).toHaveBeenCalledWith("all");
   });
 });

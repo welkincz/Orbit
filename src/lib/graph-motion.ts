@@ -48,9 +48,11 @@ export function getHomeBeaconFrame(
 export function shouldContinuouslyRedrawGraph(options: {
   hasActiveSignal: boolean;
   beaconActive: boolean;
+  /** A relationship view is focused, so matching nodes carry an animated halo. */
+  filterActive: boolean;
   pageVisible: boolean;
   reduceMotion: boolean;
 }): boolean {
   if (options.reduceMotion || !options.pageVisible) return false;
-  return options.hasActiveSignal || options.beaconActive;
+  return options.hasActiveSignal || options.beaconActive || options.filterActive;
 }

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Copy, FilePenLine, Maximize2, Minimize2, X } from "lucide-react";
+import { titleCase } from "@/lib/format";
 import { toVscodeFileHref } from "@/lib/local-files";
 import type { ISODate, Person } from "@/types/person";
 import { ConversationPrepPanel } from "./ConversationPrep";
@@ -18,7 +19,8 @@ interface PersonDetailProps {
   onSelectPerson: (id: string) => void;
   onClose: () => void;
   onResetWidth?: () => void;
-  onResize?: (width: number) => void;
+  onResize?: (width: number, options?: { persist?: boolean }) => void;
+  onResizeCommit?: () => void;
   onToggleExpanded?: () => void;
 }
 
@@ -30,10 +32,6 @@ function formatDate(date: ISODate): string {
     timeZone: "UTC",
     year: "numeric",
   }).format(new Date(Date.UTC(year, month - 1, day)));
-}
-
-function titleCase(value?: string): string | undefined {
-  return value ? `${value[0].toUpperCase()}${value.slice(1)}` : undefined;
 }
 
 export function PersonDetail(props: PersonDetailProps) {
@@ -50,6 +48,7 @@ function PersonDetailContent({
   onClose,
   onResetWidth,
   onResize,
+  onResizeCommit,
   onToggleExpanded,
 }: PersonDetailProps) {
   const [copyStatus, setCopyStatus] = useState("");
@@ -58,6 +57,7 @@ function PersonDetailContent({
   const roleAndTeam = [person.role, person.team].filter(Boolean).join(" · ");
   const interactionCount = person.interactions.length;
   const latestInteraction = person.interactions[0];
+  const vscodeHref = toVscodeFileHref(person.sourcePath);
 
   async function copyPath() {
     try {
@@ -96,14 +96,20 @@ function PersonDetailContent({
       onPointerMove={(event) => {
         const start = resizeStart.current;
         if (!start || start.pointerId !== event.pointerId) return;
-        onResize?.(start.width + start.x - event.clientX);
+        onResize?.(start.width + start.x - event.clientX, { persist: false });
       }}
       onPointerUp={(event) => {
         if (resizeStart.current?.pointerId !== event.pointerId) return;
         resizeStart.current = null;
+        onResizeCommit?.();
         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
           event.currentTarget.releasePointerCapture(event.pointerId);
         }
+      }}
+      onPointerCancel={() => {
+        if (!resizeStart.current) return;
+        resizeStart.current = null;
+        onResizeCommit?.();
       }}
       role="separator"
       tabIndex={0}
@@ -159,6 +165,12 @@ function PersonDetailContent({
             <dd className="person-detail__fact-value">{formatDate(person.effectiveLastContact)}</dd>
           </div>
         )}
+        {person.diagnostics.map((diagnostic) => (
+          <div className="person-detail__diagnostic" key={diagnostic.code}>
+            <dt className="person-detail__fact-label">Check this record</dt>
+            <dd className="person-detail__fact-value">{diagnostic.message}</dd>
+          </div>
+        ))}
         <div>
           <dt className="person-detail__fact-label">Interactions</dt>
           <dd className="person-detail__fact-value">{interactionCount} {interactionCount === 1 ? "interaction" : "interactions"}</dd>
@@ -192,10 +204,12 @@ function PersonDetailContent({
 
       <Separator className="person-detail__divider" />
       <div className="person-detail__actions">
-        <a className="text-action" href={toVscodeFileHref(person.sourcePath)}>
-          <FilePenLine aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
-          Open Markdown
-        </a>
+        {vscodeHref && (
+          <a className="text-action" href={vscodeHref}>
+            <FilePenLine aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
+            Open Markdown
+          </a>
+        )}
         <button className="text-action" onClick={copyPath} type="button">
           <Copy aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
           Copy path

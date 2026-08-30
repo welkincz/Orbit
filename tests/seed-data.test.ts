@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
+import { todayISO } from "@/lib/dates";
 import { loadPeopleFromDirectory } from "@/lib/markdown";
 import { getRelationships } from "@/lib/relationships";
 import {
@@ -11,6 +12,8 @@ import {
 import type { PeopleDataset } from "@/types/person";
 
 const AS_OF = "2026-08-27" as const;
+const FIXTURE_DIR = resolve(process.cwd(), "tests/fixtures/people-dir");
+const SHIPPED_DIR = resolve(process.cwd(), "data/people");
 const expectedContacts = [
   { id: "maya-patel", name: "Maya Patel", company: "Northstar Analytics", team: "Platform Engineering", role: "Director", relationshipStrength: 5, strategicRelevance: "high", lastContact: "2026-08-18", desiredCadenceDays: 60, innerCircle: true, target: false, introducedBy: undefined },
   { id: "owen-mercer", name: "Owen Mercer", company: "Cedarline Systems", team: "Data Infrastructure", role: "Staff Engineer", relationshipStrength: 4, strategicRelevance: "medium", lastContact: "2026-08-08", desiredCadenceDays: 45, innerCircle: true, target: false, introducedBy: undefined },
@@ -28,10 +31,10 @@ const expectedContacts = [
 let dataset: PeopleDataset;
 
 beforeAll(async () => {
-  dataset = await loadPeopleFromDirectory(resolve(process.cwd(), "data/people"), AS_OF);
+  dataset = await loadPeopleFromDirectory(FIXTURE_DIR, AS_OF);
 });
 
-describe("professional relationship seed data", () => {
+describe("professional relationship reference dataset", () => {
   it("loads the intended local-first relationship graph", () => {
     const contacts = dataset.people.filter((person) => person.type === "person");
     const relationships = getRelationships(dataset);
@@ -51,7 +54,7 @@ describe("professional relationship seed data", () => {
     const person = dataset.people.find((candidate) => candidate.id === expected.id);
 
     expect(person).toMatchObject({ type: "person", ...expected });
-    expect(person?.sourceRelativePath).toBe(`data/people/${expected.id}.md`);
+    expect(person?.sourceRelativePath).toBe(`tests/fixtures/people-dir/${expected.id}.md`);
     expect(person?.tags.length).toBeGreaterThanOrEqual(2);
     expect(person?.tags.length).toBeLessThanOrEqual(4);
   });
@@ -89,5 +92,15 @@ describe("professional relationship seed data", () => {
       kind: "Coffee chat",
       markdown: "Discussed:\n\n- Platform ownership\n- Hiring signals",
     });
+  });
+});
+
+describe("shipped starter data", () => {
+  it("loads and validates without asserting on content the user is told to edit", async () => {
+    const shipped = await loadPeopleFromDirectory(SHIPPED_DIR, todayISO());
+
+    expect(shipped.people.length).toBeGreaterThan(0);
+    expect(shipped.people.filter((person) => person.type === "self")).toHaveLength(1);
+    expect(new Set(shipped.people.map((person) => person.id)).size).toBe(shipped.people.length);
   });
 });

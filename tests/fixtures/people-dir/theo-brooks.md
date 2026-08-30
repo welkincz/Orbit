@@ -27,26 +27,6 @@ Theo connects engineering craft with management systems.
 
 Maya introduced us after we found ourselves asking similar questions about how enablement work earns trust.
 
-## Conversation Prep
-
-### Their world
-
-Theo is rebuilding the enablement program around evidence rather than anecdote, and is trying to prove its value to skeptical staff engineers.
-
-### What they care about
-
-- Enablement measured by adopted practice, not by session attendance
-- Managers designing systems instead of coaching one person at a time
-
-### Remember
-
-- It has been a while; open by acknowledging the gap rather than the ask
-
-### Next conversation
-
-- Ask how the enablement metrics landed with the staff engineers
-- Ask what the manager transition looks like six months in
-
 ## Interactions
 
 ### 2026-03-01 — Video call

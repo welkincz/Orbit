@@ -27,27 +27,6 @@ Marcus is building AI infrastructure at a useful adjacent scale.
 
 Theo introduced us after noticing overlap in how we think about platform ownership for fast-moving internal capabilities.
 
-## Conversation Prep
-
-### Their world
-
-Marcus's model-serving platform is crossing from experiment into an operationally critical service, and the team shape has not caught up yet.
-
-### What they care about
-
-- On-call load landing fairly as a service becomes load-bearing
-- Inference cost being a design constraint, not an afterthought
-
-### Remember
-
-- Charlie offered to send the inference-cost article
-- Theo made this introduction
-
-### Next conversation
-
-- Ask whether the model-serving on-call rotation settled
-- Ask what changed once cost moved into the design review
-
 ## Interactions
 
 ### 2026-08-21 — Video call

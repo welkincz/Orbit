@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import {
   RELATIONSHIP_FILTERS,
@@ -13,16 +13,35 @@ interface RelationshipFilterBarProps {
   onResetLayout: () => void;
 }
 
+const RESET_STATUS_MESSAGE = "Layout reset.";
+const RESET_STATUS_CLEAR_MS = 4000;
+
 export function RelationshipFilterBar({
   activeFilter,
   onFilterChange,
   onResetLayout,
 }: RelationshipFilterBarProps) {
-  const [resetStatus, setResetStatus] = useState("");
+  const [status, setStatus] = useState("");
+  const announceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => () => {
+    if (announceTimer.current !== null) clearTimeout(announceTimer.current);
+    if (clearTimer.current !== null) clearTimeout(clearTimer.current);
+  }, []);
 
   function resetLayout() {
     onResetLayout();
-    setResetStatus("Layout reset.");
+    if (announceTimer.current !== null) clearTimeout(announceTimer.current);
+    if (clearTimer.current !== null) clearTimeout(clearTimer.current);
+
+    // Blank the live region first: assistive tech stays silent when a repeated
+    // reset re-renders the same text, so the text has to actually change.
+    setStatus("");
+    announceTimer.current = setTimeout(() => {
+      setStatus(RESET_STATUS_MESSAGE);
+      clearTimer.current = setTimeout(() => setStatus(""), RESET_STATUS_CLEAR_MS);
+    }, 0);
   }
 
   return (
@@ -44,7 +63,9 @@ export function RelationshipFilterBar({
         <RotateCcw aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
         Reset layout
       </button>
-      <span aria-live="polite" className="graph-control-status">{resetStatus}</span>
+      <span aria-live="polite" className="graph-control-status" role="status">
+        {status}
+      </span>
     </div>
   );
 }

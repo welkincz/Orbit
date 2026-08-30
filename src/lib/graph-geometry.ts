@@ -101,3 +101,28 @@ export function getGraphPointerTarget(
 
   return { kind: "background" };
 }
+
+export interface ScreenGraphScene {
+  nodes: ScreenGraphNode[];
+  links: ScreenGraphLink[];
+}
+
+/**
+ * Hit testing runs on every pointer move, but node screen positions only change
+ * when the simulation ticks, the viewport zooms, or a node is dragged. The cache
+ * keeps one scene per version so pointer moves stop reallocating the whole graph.
+ */
+export function createScreenSceneCache() {
+  let cachedVersion: number | null = null;
+  let cached: ScreenGraphScene | null = null;
+
+  return {
+    read(version: number, build: () => ScreenGraphScene): ScreenGraphScene {
+      if (cached === null || cachedVersion !== version) {
+        cached = build();
+        cachedVersion = version;
+      }
+      return cached;
+    },
+  };
+}

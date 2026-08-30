@@ -6,6 +6,9 @@ interface DataErrorViewProps {
 }
 
 export function DataErrorView({ error }: DataErrorViewProps) {
+  const groups = error.groups;
+  const fileCount = groups.filter((group) => group.sourceRelativePath).length;
+
   return (
     <main className="error-shell">
       <section aria-labelledby="data-error-heading" className="error-ledger">
@@ -13,18 +16,22 @@ export function DataErrorView({ error }: DataErrorViewProps) {
           Couldn&apos;t load your network
         </h1>
         <p className="error-ledger__intro">
-          Check the people data below and try again.
+          {fileCount > 1
+            ? `Check the ${fileCount} files below and try again.`
+            : "Check the people data below and try again."}
         </p>
 
-        {error.sourceRelativePath ? (
-          <p className="error-ledger__source">
-            {error.sourceRelativePath}
-          </p>
-        ) : null}
+        {groups.map((group, index) => (
+          <div className="error-ledger__group" key={group.sourceRelativePath ?? `group-${index}`}>
+            {group.sourceRelativePath ? (
+              <p className="error-ledger__source">{group.sourceRelativePath}</p>
+            ) : null}
 
-        <ul className="error-ledger__issues list-disc">
-          {error.issues.map((issue) => <li key={issue}>{issue}</li>)}
-        </ul>
+            <ul className="error-ledger__issues list-disc">
+              {group.issues.map((issue) => <li key={issue}>{issue}</li>)}
+            </ul>
+          </div>
+        ))}
 
         <div className="error-ledger__action">
           <RefreshPeopleButton label="Retry" />

@@ -1,4 +1,5 @@
 import ReactMarkdown from "react-markdown";
+import { headingId } from "@/lib/format";
 
 interface MarkdownSectionProps {
   title: string;
@@ -9,7 +10,28 @@ interface MarkdownContentProps {
   markdown: string;
 }
 
+type MarkdownChildren = { children?: React.ReactNode };
+
+// Every notes heading renders at h4 so it nests under the section's own h3
+// rather than competing with the panel outline.
+const notesHeading = ({ children }: MarkdownChildren) => (
+  <h4 className="detail-prose-heading">{children}</h4>
+);
+
 const markdownComponents = {
+  h1: notesHeading,
+  h2: notesHeading,
+  h3: notesHeading,
+  h4: notesHeading,
+  h5: notesHeading,
+  h6: notesHeading,
+  blockquote: ({ children }: MarkdownChildren) => (
+    <blockquote className="detail-prose-quote">{children}</blockquote>
+  ),
+  pre: ({ children }: MarkdownChildren) => (
+    <pre className="detail-prose-pre">{children}</pre>
+  ),
+  hr: () => <hr className="detail-prose-rule" />,
   p: ({ children }: { children?: React.ReactNode }) => (
     <p className="detail-prose">{children}</p>
   ),
@@ -32,7 +54,13 @@ const markdownComponents = {
   ),
 };
 
-const allowedElements = ["p", "ul", "ol", "li", "strong", "em", "code", "a"];
+// Images stay out on purpose: a remote image in a local-first app would make a
+// network request on behalf of private relationship notes.
+const allowedElements = [
+  "p", "ul", "ol", "li", "strong", "em", "code", "a",
+  "h1", "h2", "h3", "h4", "h5", "h6",
+  "blockquote", "pre", "hr", "del",
+];
 
 export function MarkdownContent({ markdown }: MarkdownContentProps) {
   if (!markdown.trim()) return null;
@@ -51,9 +79,11 @@ export function MarkdownContent({ markdown }: MarkdownContentProps) {
 export function MarkdownSection({ title, markdown }: MarkdownSectionProps) {
   if (!markdown.trim()) return null;
 
+  const sectionId = headingId(title);
+
   return (
-    <section aria-labelledby={`${title.toLowerCase().replaceAll(" ", "-")}-heading`} className="detail-section">
-      <h3 className="detail-section__heading" id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}>
+    <section aria-labelledby={sectionId} className="detail-section">
+      <h3 className="detail-section__heading" id={sectionId}>
         {title}
       </h3>
       <MarkdownContent markdown={markdown} />

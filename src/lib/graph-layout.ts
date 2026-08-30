@@ -11,7 +11,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function readGraphLayout(storage: Storage | null, validIds: ReadonlySet<string>): GraphLayout {
+/**
+ * Returns every well-formed stored position, including people who are not in the
+ * current dataset. Dropping them here would delete their hand-placed positions
+ * the next time the layout is written back.
+ */
+export function readGraphLayout(storage: Storage | null): GraphLayout {
   if (!storage) return {};
 
   try {
@@ -21,7 +26,7 @@ export function readGraphLayout(storage: Storage | null, validIds: ReadonlySet<s
     if (!isRecord(parsed)) return {};
 
     return Object.fromEntries(Object.entries(parsed).flatMap(([id, position]) => {
-      if (!validIds.has(id) || !isRecord(position)) return [];
+      if (!isRecord(position)) return [];
       const { x, y } = position;
       if (typeof x !== "number" || !Number.isFinite(x)) return [];
       if (typeof y !== "number" || !Number.isFinite(y)) return [];
@@ -30,6 +35,13 @@ export function readGraphLayout(storage: Storage | null, validIds: ReadonlySet<s
   } catch {
     return {};
   }
+}
+
+/** Narrows a stored layout to the people currently on the map. */
+export function selectGraphLayout(layout: GraphLayout, validIds: ReadonlySet<string>): GraphLayout {
+  return Object.fromEntries(
+    Object.entries(layout).filter(([id]) => validIds.has(id)),
+  );
 }
 
 export function writeGraphLayout(storage: Storage | null, layout: GraphLayout): boolean {

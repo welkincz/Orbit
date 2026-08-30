@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import * as graphGeometry from "@/lib/graph-geometry";
 import {
+  createScreenSceneCache,
   didPointerDrag,
   getGraphNodeScreenRadius,
   getGraphPointerTarget,
@@ -91,5 +92,42 @@ describe("solar anchor geometry", () => {
 
     expect(getSolarRayEnd?.(10, 3.2, 6.2, 0)).toBe(13.2);
     expect(getSolarRayEnd?.(10, 3.2, 6.2, 1)).toBe(19.4);
+  });
+});
+
+describe("createScreenSceneCache", () => {
+  const scene = () => ({ nodes: [], links: [] });
+
+  it("builds once and reuses the same scene for an unchanged version", () => {
+    const cache = createScreenSceneCache();
+    const build = vi.fn(scene);
+
+    const first = cache.read(1, build);
+    const second = cache.read(1, build);
+
+    expect(build).toHaveBeenCalledTimes(1);
+    expect(second).toBe(first);
+  });
+
+  it("rebuilds when the version changes", () => {
+    const cache = createScreenSceneCache();
+    const build = vi.fn(scene);
+
+    const first = cache.read(1, build);
+    const rebuilt = cache.read(2, build);
+
+    expect(build).toHaveBeenCalledTimes(2);
+    expect(rebuilt).not.toBe(first);
+  });
+
+  it("rebuilds when a version is revisited after another version", () => {
+    const cache = createScreenSceneCache();
+    const build = vi.fn(scene);
+
+    cache.read(1, build);
+    cache.read(2, build);
+    cache.read(1, build);
+
+    expect(build).toHaveBeenCalledTimes(3);
   });
 });

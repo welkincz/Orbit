@@ -26,26 +26,6 @@ Owen understands durable data-infrastructure operating practices.
 
 We trade notes on how platform teams make reliability visible without turning every decision into process overhead.
 
-## Conversation Prep
-
-### Their world
-
-Owen's data infrastructure group is absorbing work faster than it is shedding it, and he is deciding what to formally stop supporting.
-
-### What they care about
-
-- Deprecation being a first-class project with a real owner
-- Infrastructure decisions that survive a team reorganization
-
-### Remember
-
-- Owen introduced Nia and Imani; he is generous with his network
-
-### Next conversation
-
-- Ask which system he decided to sunset first
-- Ask whether the deprecation plan survived contact with its users
-
 ## Interactions
 
 ### 2026-08-08 — Working lunch
