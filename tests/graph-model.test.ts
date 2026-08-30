@@ -44,7 +44,7 @@ function node(id: string): GraphNode {
     personId: id,
     name: id,
     isSelf: id === "self",
-    visualRole: id === "self" ? "solar-anchor" : "planet",
+    visualRole: id === "self" ? "self-anchor" : "planet",
     strength: 5,
   };
 }
@@ -92,7 +92,7 @@ describe("graph model", () => {
 
     expect(selfNode).toEqual(expect.objectContaining({
       isSelf: true,
-      visualRole: "solar-anchor",
+      visualRole: "self-anchor",
     }));
     expect(maya).toEqual(expect.objectContaining({
       isSelf: false,

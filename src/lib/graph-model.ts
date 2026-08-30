@@ -8,7 +8,7 @@ export interface GraphNode {
   role?: string;
   team?: string;
   isSelf: boolean;
-  visualRole: "solar-anchor" | "planet";
+  visualRole: "self-anchor" | "planet";
   strength: number;
   strategicRelevance?: StrategicRelevance;
   x?: number;
@@ -64,7 +64,7 @@ export function buildGraphModel(dataset: PeopleDataset): GraphModel {
       role: person.role,
       team: person.team,
       isSelf: person.id === dataset.selfId,
-      visualRole: person.id === dataset.selfId ? "solar-anchor" : "planet",
+      visualRole: person.id === dataset.selfId ? "self-anchor" : "planet",
       strength: person.id === dataset.selfId ? 9 : 4 + (person.relationshipStrength ?? 1),
       strategicRelevance: person.strategicRelevance,
     }))

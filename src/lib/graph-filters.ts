@@ -18,13 +18,6 @@ export const RELATIONSHIP_FILTERS: ReadonlyArray<{ key: RelationshipFilter; labe
 
 export type GraphVisualState = "anchor" | "neutral" | "matching" | "dimmed" | "active";
 
-export const FILTER_HALO_COLOR: Record<Exclude<RelationshipFilter, "all">, string> = {
-  "inner-circle": "#b08a47",
-  reconnect: "#b65f43",
-  recent: "#748468",
-  targets: "#6c648f",
-};
-
 export function getGraphVisualState(
   personId: string,
   selfId: string,

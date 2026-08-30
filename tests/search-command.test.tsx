@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SearchCommand } from "@/components/search/SearchCommand";
 import { NetworkWorkspace } from "@/components/network/NetworkWorkspace";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import type { PeopleDataset } from "@/types/person";
 import { makePerson } from "./fixtures/people";
 
@@ -142,7 +143,11 @@ describe("SearchCommand", () => {
   it("uses the workspace selection callback to open the selected person's existing details", async () => {
     const user = userEvent.setup();
 
-    render(<NetworkWorkspace currentDate="2026-08-27" initialDataset={dataset} />);
+    render(
+      <ThemeProvider>
+        <NetworkWorkspace currentDate="2026-08-27" initialDataset={dataset} />
+      </ThemeProvider>,
+    );
     await user.click(screen.getByRole("button", { name: /search/i }));
     await user.type(await screen.findByRole("combobox", { name: /search people/i }), "Maya");
     await user.keyboard("{Enter}");
@@ -152,7 +157,11 @@ describe("SearchCommand", () => {
 
   it("clears selection everywhere when refreshed data no longer contains the selected person", async () => {
     const user = userEvent.setup();
-    const { rerender } = render(<NetworkWorkspace currentDate="2026-08-27" initialDataset={dataset} />);
+    const { rerender } = render(
+      <ThemeProvider>
+        <NetworkWorkspace currentDate="2026-08-27" initialDataset={dataset} />
+      </ThemeProvider>,
+    );
 
     await user.click(screen.getByRole("button", { name: /search/i }));
     await user.type(await screen.findByRole("combobox", { name: /search people/i }), "Maya");
@@ -166,7 +175,11 @@ describe("SearchCommand", () => {
       people: dataset.people.filter((person) => person.id !== "maya-patel"),
       loadedAt: "2026-08-27T00:01:00.000Z",
     };
-    rerender(<NetworkWorkspace currentDate="2026-08-27" initialDataset={refreshedDataset} />);
+    rerender(
+      <ThemeProvider>
+        <NetworkWorkspace currentDate="2026-08-27" initialDataset={refreshedDataset} />
+      </ThemeProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.queryByRole("heading", { name: "Maya Patel" })).not.toBeInTheDocument();

@@ -7,6 +7,7 @@ import { RefreshPeopleButton } from "@/components/network/RefreshPeopleButton";
 import { PersonDetail } from "@/components/people/PersonDetail";
 import { RelationshipSidebar } from "@/components/people/RelationshipSidebar";
 import { SearchCommand } from "@/components/search/SearchCommand";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import type { RelationshipFilter } from "@/lib/graph-filters";
 import type { ISODate, PeopleDataset } from "@/types/person";
 
@@ -194,6 +195,7 @@ export function NetworkWorkspace({ initialDataset, currentDate }: NetworkWorkspa
         <div className="orbit-actions">
           <SearchCommand people={initialDataset.people} onSelect={selectPerson} />
           <RefreshPeopleButton />
+          <ThemeToggle />
         </div>
       </header>
 
