@@ -109,6 +109,18 @@ describe("graph model", () => {
     expect(maya?.strength).toBeLessThanOrEqual(9);
   });
 
+  it("keeps the data relationship strength separate from the rendered node size", () => {
+    const model = buildGraphModel(datasetWithIntroductions);
+    const selfNode = model.nodes.find(({ id }) => id === "self");
+    const maya = model.nodes.find(({ id }) => id === "maya");
+    const theo = model.nodes.find(({ id }) => id === "theo");
+
+    // strength is a radius input; relationshipStrength is the 1-5 record value.
+    expect(maya?.relationshipStrength).toBe(4);
+    expect(theo?.relationshipStrength).toBe(1);
+    expect(selfNode?.relationshipStrength).toBeUndefined();
+  });
+
   it("keeps relationship semantics on fresh graph links", () => {
     const model = buildGraphModel(datasetWithIntroductions);
 

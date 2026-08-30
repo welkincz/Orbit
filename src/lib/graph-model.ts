@@ -1,5 +1,5 @@
 import { getRelationships } from "@/lib/relationships";
-import type { PeopleDataset, StrategicRelevance } from "@/types/person";
+import type { PeopleDataset, RelationshipStrength, StrategicRelevance } from "@/types/person";
 
 export interface GraphNode {
   id: string;
@@ -9,7 +9,10 @@ export interface GraphNode {
   team?: string;
   isSelf: boolean;
   visualRole: "self-anchor" | "planet";
+  /** Rendered node size input, not a record value. */
   strength: number;
+  /** The 1-5 value from the person's record; absent for the self anchor. */
+  relationshipStrength?: RelationshipStrength;
   strategicRelevance?: StrategicRelevance;
   x?: number;
   y?: number;
@@ -66,6 +69,7 @@ export function buildGraphModel(dataset: PeopleDataset): GraphModel {
       isSelf: person.id === dataset.selfId,
       visualRole: person.id === dataset.selfId ? "self-anchor" : "planet",
       strength: person.id === dataset.selfId ? 9 : 4 + (person.relationshipStrength ?? 1),
+      relationshipStrength: person.id === dataset.selfId ? undefined : person.relationshipStrength,
       strategicRelevance: person.strategicRelevance,
     }))
     .toSorted((left, right) => {
