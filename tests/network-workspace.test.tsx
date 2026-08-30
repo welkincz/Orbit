@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NetworkWorkspace } from "@/components/network/NetworkWorkspace";
@@ -123,6 +123,40 @@ describe("NetworkWorkspace detail sizing", () => {
   });
 });
 
+describe("NetworkWorkspace resize persistence", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it("writes storage once on release instead of on every pointer move", async () => {
+    const user = userEvent.setup();
+    const setItem = vi.spyOn(Storage.prototype, "setItem");
+    const { container } = renderWorkspace();
+
+    await user.click(screen.getByRole("button", { name: /jane doe/i }));
+    const workspace = container.querySelector<HTMLElement>(".orbit-workspace")!;
+    Object.defineProperty(workspace, "clientWidth", { configurable: true, value: 1440 });
+    const handle = screen.getByRole("separator", { name: "Resize details" });
+
+    setItem.mockClear();
+    fireEvent.pointerDown(handle, { clientX: 900, pointerId: 1 });
+    for (let clientX = 890; clientX >= 810; clientX -= 10) {
+      fireEvent.pointerMove(handle, { clientX, pointerId: 1 });
+    }
+
+    expect(setItem).not.toHaveBeenCalled();
+    expect(workspace.style.getPropertyValue("--detail-width")).toBe("458px");
+
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+
+    const detailWrites = setItem.mock.calls.filter(([key]) => key === "orbit.detail-width.v1");
+    expect(detailWrites).toHaveLength(1);
+    expect(JSON.parse(detailWrites[0][1] as string)).toMatchObject({ width: 458 });
+  });
+});
+
 describe("NetworkWorkspace data warnings", () => {
   afterEach(cleanup);
 
@@ -186,5 +220,38 @@ describe("NetworkWorkspace load freshness", () => {
     expect(stamp).toBeVisible();
     expect(stamp).toHaveAttribute("dateTime", "2026-08-29T00:00:00.000Z");
     expect(stamp.textContent).toMatch(/^Read \d{1,2}:\d{2}/);
+  });
+});
+
+describe("NetworkWorkspace keyboard dismissal", () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(cleanup);
+
+  it("closes the detail panel with Escape", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    await user.click(screen.getByRole("button", { name: /jane doe/i }));
+    expect(await screen.findByRole("complementary", { name: "Jane Doe details" })).toBeVisible();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(screen.queryByRole("complementary", { name: "Jane Doe details" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("leaves Escape alone while the search dialog owns it", async () => {
+    const user = userEvent.setup();
+    renderWorkspace();
+
+    await user.click(screen.getByRole("button", { name: /jane doe/i }));
+    await user.click(screen.getByRole("button", { name: /search/i }));
+    expect(await screen.findByRole("dialog")).toBeVisible();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByRole("complementary", { name: "Jane Doe details" })).toBeVisible();
   });
 });

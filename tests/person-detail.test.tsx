@@ -171,6 +171,7 @@ describe("PersonDetail", () => {
 
   it("resizes from the left edge with pointer and keyboard controls", () => {
     const onResize = vi.fn();
+    const onResizeCommit = vi.fn();
     const onResetWidth = vi.fn();
     render(
       <PersonDetail
@@ -181,15 +182,23 @@ describe("PersonDetail", () => {
         onClose={vi.fn()}
         onResetWidth={onResetWidth}
         onResize={onResize}
+        onResizeCommit={onResizeCommit}
       />,
     );
 
     const handle = screen.getByRole("separator", { name: "Resize details" });
     expect(handle).toHaveAttribute("aria-valuenow", "480");
     fireEvent.pointerDown(handle, { clientX: 600, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 560, pointerId: 1 });
     fireEvent.pointerMove(handle, { clientX: 520, pointerId: 1 });
+
+    // Dragging stays transient so it never writes to storage per pointer event.
+    expect(onResize).toHaveBeenCalledTimes(2);
+    expect(onResize).toHaveBeenLastCalledWith(560, { persist: false });
+    expect(onResizeCommit).not.toHaveBeenCalled();
+
     fireEvent.pointerUp(handle, { pointerId: 1 });
-    expect(onResize).toHaveBeenLastCalledWith(560);
+    expect(onResizeCommit).toHaveBeenCalledTimes(1);
 
     fireEvent.keyDown(handle, { key: "ArrowLeft" });
     expect(onResize).toHaveBeenLastCalledWith(504);

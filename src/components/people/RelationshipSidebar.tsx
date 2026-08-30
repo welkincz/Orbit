@@ -37,6 +37,7 @@ function PersonRow({ person, selectedId, onSelect, secondary }: PersonRowProps) 
     <button
       aria-current={selectedId === person.id ? "true" : undefined}
       className="relationship-row"
+      data-person-id={person.id}
       onClick={() => onSelect(person.id)}
       type="button"
     >

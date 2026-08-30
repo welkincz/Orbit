@@ -19,7 +19,8 @@ interface PersonDetailProps {
   onSelectPerson: (id: string) => void;
   onClose: () => void;
   onResetWidth?: () => void;
-  onResize?: (width: number) => void;
+  onResize?: (width: number, options?: { persist?: boolean }) => void;
+  onResizeCommit?: () => void;
   onToggleExpanded?: () => void;
 }
 
@@ -47,6 +48,7 @@ function PersonDetailContent({
   onClose,
   onResetWidth,
   onResize,
+  onResizeCommit,
   onToggleExpanded,
 }: PersonDetailProps) {
   const [copyStatus, setCopyStatus] = useState("");
@@ -94,14 +96,20 @@ function PersonDetailContent({
       onPointerMove={(event) => {
         const start = resizeStart.current;
         if (!start || start.pointerId !== event.pointerId) return;
-        onResize?.(start.width + start.x - event.clientX);
+        onResize?.(start.width + start.x - event.clientX, { persist: false });
       }}
       onPointerUp={(event) => {
         if (resizeStart.current?.pointerId !== event.pointerId) return;
         resizeStart.current = null;
+        onResizeCommit?.();
         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
           event.currentTarget.releasePointerCapture(event.pointerId);
         }
+      }}
+      onPointerCancel={() => {
+        if (!resizeStart.current) return;
+        resizeStart.current = null;
+        onResizeCommit?.();
       }}
       role="separator"
       tabIndex={0}
