@@ -8,6 +8,7 @@ export interface GraphNode {
   role?: string;
   team?: string;
   isSelf: boolean;
+  visualRole: "solar-anchor" | "planet";
   strength: number;
   strategicRelevance?: StrategicRelevance;
   x?: number;
@@ -24,6 +25,7 @@ export interface GraphLink {
   target: string | GraphNode;
   kind: "direct" | "introduced_by";
   directed: boolean;
+  motion: "none" | "selection-direction";
   strength?: number;
 }
 
@@ -62,6 +64,7 @@ export function buildGraphModel(dataset: PeopleDataset): GraphModel {
       role: person.role,
       team: person.team,
       isSelf: person.id === dataset.selfId,
+      visualRole: person.id === dataset.selfId ? "solar-anchor" : "planet",
       strength: person.id === dataset.selfId ? 9 : 4 + (person.relationshipStrength ?? 1),
       strategicRelevance: person.strategicRelevance,
     }))
@@ -76,6 +79,7 @@ export function buildGraphModel(dataset: PeopleDataset): GraphModel {
     target: relationship.target,
     kind: relationship.kind,
     directed: relationship.directed,
+    motion: relationship.kind === "introduced_by" ? "selection-direction" : "none",
     strength: relationship.strength,
   }));
 

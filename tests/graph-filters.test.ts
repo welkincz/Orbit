@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getFilterFocusIds,
   getGraphVisualState,
   getRelationshipFilterIds,
 } from "@/lib/graph-filters";
@@ -36,9 +37,24 @@ describe("graph relationship filters", () => {
 
   it("lets hover and selection override filter dimming", () => {
     const matchingIds = new Set(["maya"]);
-    expect(getGraphVisualState("maya", "targets", matchingIds, null)).toBe("matching");
-    expect(getGraphVisualState("theo", "targets", matchingIds, null)).toBe("dimmed");
-    expect(getGraphVisualState("theo", "targets", matchingIds, "theo")).toBe("active");
-    expect(getGraphVisualState("theo", "all", matchingIds, null)).toBe("neutral");
+    expect(getGraphVisualState("maya", "self", "targets", matchingIds, null)).toBe("matching");
+    expect(getGraphVisualState("theo", "self", "targets", matchingIds, null)).toBe("dimmed");
+    expect(getGraphVisualState("theo", "self", "targets", matchingIds, "theo")).toBe("active");
+    expect(getGraphVisualState("theo", "self", "all", matchingIds, null)).toBe("neutral");
+  });
+
+  it("keeps self as the visual anchor under every filter and interaction", () => {
+    const matchingIds = new Set(["maya"]);
+
+    expect(getGraphVisualState("self", "self", "inner-circle", matchingIds, null)).toBe("anchor");
+    expect(getGraphVisualState("self", "self", "inner-circle", matchingIds, "self")).toBe("anchor");
+  });
+
+  it("focuses a filtered camera on self plus matching people", () => {
+    const matchingIds = new Set(["maya", "owen"]);
+
+    expect(getFilterFocusIds("self", "inner-circle", matchingIds))
+      .toEqual(new Set(["self", "maya", "owen"]));
+    expect(getFilterFocusIds("self", "all", matchingIds)).toBeNull();
   });
 });

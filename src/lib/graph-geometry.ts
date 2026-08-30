@@ -40,6 +40,21 @@ export function didPointerDrag(start: GraphPoint, end: GraphPoint, threshold = 4
   return Math.hypot(end.x - start.x, end.y - start.y) > threshold;
 }
 
+export function getSolarRayEnd(
+  radius: number,
+  gap: number,
+  length: number,
+  progress: number,
+): number {
+  const boundedProgress = Math.max(0, Math.min(1, progress));
+  return radius + gap + length * boundedProgress;
+}
+
+export function getGraphNodeScreenRadius(strength: number, isSelf: boolean): number {
+  const planetRadius = Math.min(9, Math.max(5, strength));
+  return isSelf ? Math.max(8, planetRadius) * 1.6 : planetRadius;
+}
+
 function hitsNode(point: GraphPoint, node: ScreenGraphNode): boolean {
   if (Math.hypot(point.x - node.x, point.y - node.y) <= node.radius + NODE_HIT_PADDING) {
     return true;

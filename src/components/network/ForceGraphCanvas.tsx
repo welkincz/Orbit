@@ -9,7 +9,9 @@ import ForceGraph2D, {
 import { useReducedMotion } from "motion/react";
 import {
   didPointerDrag,
+  getGraphNodeScreenRadius,
   getGraphPointerTarget,
+  getSolarRayEnd,
   isPrimaryPointerActivation,
   type GraphPoint,
   type ScreenGraphLink,
@@ -22,8 +24,10 @@ import {
   type GraphLink,
   type GraphNode,
 } from "@/lib/graph-model";
+import { getContinuousParticleCount } from "@/lib/graph-motion";
 import {
   FILTER_HALO_COLOR,
+  getFilterFocusIds,
   getGraphVisualState,
   getRelationshipFilterIds,
   type RelationshipFilter,
@@ -57,6 +61,8 @@ interface TooltipCoordinates {
 
 const TOOLTIP_WIDTH = 240;
 const TOOLTIP_HEIGHT = 116;
+const SOLAR_ENTRANCE_DURATION_MS = 650;
+const SOLAR_GOLD = "#bd9144";
 
 const relevanceColor: Record<StrategicRelevance, string> = {
   high: "#b65f43",
@@ -73,19 +79,66 @@ function titleCase(value: string): string {
   return `${value[0].toUpperCase()}${value.slice(1)}`;
 }
 
-function drawDiamond(
+function drawSolarAnchor(
   context: CanvasRenderingContext2D,
   x: number,
   y: number,
   radius: number,
-  padding: number,
+  scale: number,
+  entranceProgress: number,
+  breath: number,
 ) {
+  const easedProgress = 1 - Math.pow(1 - entranceProgress, 3);
+  const sunRadius = radius * (0.78 + easedProgress * 0.22);
+  const inheritedAlpha = context.globalAlpha;
+  const coronaRadius = sunRadius + (4.8 + breath * 1.1) / scale;
+
+  context.save();
+
   context.beginPath();
-  context.moveTo(x, y - radius - padding);
-  context.lineTo(x + radius + padding, y);
-  context.lineTo(x, y + radius + padding);
-  context.lineTo(x - radius - padding, y);
-  context.closePath();
+  context.arc(x, y, coronaRadius, 0, Math.PI * 2);
+  context.strokeStyle = SOLAR_GOLD;
+  context.lineWidth = (1.4 + breath * 0.35) / scale;
+  context.globalAlpha = inheritedAlpha * (0.16 + breath * 0.1);
+  context.stroke();
+
+  context.strokeStyle = SOLAR_GOLD;
+  context.lineCap = "round";
+  context.lineWidth = 1.3 / scale;
+  context.globalAlpha = inheritedAlpha * (0.5 + easedProgress * 0.42);
+
+  for (let index = 0; index < 8; index += 1) {
+    const angle = index * Math.PI / 4;
+    const rayStart = sunRadius + 3.2 / scale;
+    const rayEnd = getSolarRayEnd(
+      sunRadius,
+      3.2 / scale,
+      (index % 2 === 0 ? 7.2 + breath * 0.7 : 5.2 + breath * 0.5) / scale,
+      easedProgress,
+    );
+    context.beginPath();
+    context.moveTo(x + Math.cos(angle) * rayStart, y + Math.sin(angle) * rayStart);
+    context.lineTo(x + Math.cos(angle) * rayEnd, y + Math.sin(angle) * rayEnd);
+    context.stroke();
+  }
+
+  context.beginPath();
+  context.arc(x, y, sunRadius + 2.1 / scale, 0, Math.PI * 2);
+  context.lineWidth = 1.55 / scale;
+  context.stroke();
+
+  context.globalAlpha = inheritedAlpha;
+  context.beginPath();
+  context.arc(x, y, sunRadius, 0, Math.PI * 2);
+  context.fillStyle = "#1b1d1e";
+  context.fill();
+
+  context.beginPath();
+  context.arc(x, y, sunRadius * 0.64, 0, Math.PI * 2);
+  context.strokeStyle = "rgba(243, 224, 177, 0.74)";
+  context.lineWidth = 1.1 / scale;
+  context.stroke();
+  context.restore();
 }
 
 function browserStorage(): Storage | null {
@@ -114,6 +167,8 @@ export function ForceGraphCanvas({
   const labelWidthsRef = useRef(new Map<string, number>());
   const draggedRef = useRef(false);
   const layoutRef = useRef<GraphLayout>({});
+  const entranceStartedAtRef = useRef<number | null>(null);
+  const lastActiveFilterRef = useRef(activeFilter);
   const lastLayoutResetTokenRef = useRef(layoutResetToken);
   const [size, setSize] = useState<GraphSize>({ width: 0, height: 0 });
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -131,6 +186,40 @@ export function ForceGraphCanvas({
   const hoveredNode = hoveredId
     ? graphData.nodes.find(({ personId }) => personId === hoveredId)
     : undefined;
+
+  useEffect(() => {
+    if (!selectedId || reduceMotion) return;
+    const graph = graphRef.current;
+    if (!graph) return;
+
+    const motionLinks = graphData.links.filter((link) => {
+      if (link.motion !== "selection-direction") return false;
+      return endpointId(link.source) === selectedId || endpointId(link.target) === selectedId;
+    });
+    if (motionLinks.length === 0) return;
+
+    const animationFrame = window.requestAnimationFrame(() => {
+      motionLinks.forEach((link) => graph.emitParticle(link));
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [graphData.links, reduceMotion, selectedId]);
+
+  useEffect(() => {
+    if (lastActiveFilterRef.current === activeFilter || size.width === 0 || size.height === 0) return;
+    lastActiveFilterRef.current = activeFilter;
+    const graph = graphRef.current;
+    if (!graph) return;
+
+    const focusIds = getFilterFocusIds(dataset.selfId, activeFilter, matchingIds);
+    const animationFrame = window.requestAnimationFrame(() => {
+      graph.zoomToFit(
+        reduceMotion ? 0 : 520,
+        activeFilter === "all" ? 58 : 108,
+        focusIds ? (node) => focusIds.has(node.personId) : undefined,
+      );
+    });
+    return () => window.cancelAnimationFrame(animationFrame);
+  }, [activeFilter, dataset.selfId, matchingIds, reduceMotion, size.height, size.width]);
 
   useLayoutEffect(() => {
     const validIds = new Set(graphData.nodes.map(({ personId }) => personId));
@@ -190,11 +279,18 @@ export function ForceGraphCanvas({
   }, [graphData.nodes, layoutResetToken]);
 
   const isNodeEmphasized = useCallback((node: GraphNode) => {
+    if (node.isSelf) return true;
     if (node.personId === selectedId || node.personId === hoveredId) return true;
     const relationshipMatch = connectedIds === null || connectedIds.has(node.personId);
-    const visualState = getGraphVisualState(node.personId, activeFilter, matchingIds, activeId);
+    const visualState = getGraphVisualState(
+      node.personId,
+      dataset.selfId,
+      activeFilter,
+      matchingIds,
+      activeId,
+    );
     return relationshipMatch && visualState !== "dimmed";
-  }, [activeFilter, activeId, connectedIds, hoveredId, matchingIds, selectedId]);
+  }, [activeFilter, activeId, connectedIds, dataset.selfId, hoveredId, matchingIds, selectedId]);
 
   const isLinkEmphasized = useCallback((link: GraphLink) => {
     const sourceId = endpointId(link.source);
@@ -209,55 +305,78 @@ export function ForceGraphCanvas({
     return relationshipMatch && filterMatch;
   }, [activeFilter, connectedIds, matchingIds]);
 
+  const isSelectedIntroduction = useCallback((link: GraphLink) => {
+    if (!selectedId || link.kind !== "introduced_by") return false;
+    return endpointId(link.source) === selectedId || endpointId(link.target) === selectedId;
+  }, [selectedId]);
+
   const paintNode = useCallback((node: NodeObject<GraphNode>, context: CanvasRenderingContext2D, globalScale: number) => {
     if (node.x === undefined || node.y === undefined) return;
 
     const emphasized = isNodeEmphasized(node);
     const selected = node.personId === selectedId;
     const hovered = node.personId === hoveredId;
-    const visualState = getGraphVisualState(node.personId, activeFilter, matchingIds, activeId);
+    const visualState = getGraphVisualState(
+      node.personId,
+      dataset.selfId,
+      activeFilter,
+      matchingIds,
+      activeId,
+    );
     const filterMatch = activeFilter !== "all" && matchingIds.has(node.personId);
     const scale = Math.max(globalScale, 0.001);
-    const radius = Math.min(9, Math.max(5, node.strength)) / scale;
+    const radius = getGraphNodeScreenRadius(node.strength, node.isSelf) / scale;
     const now = performance.now();
-    const phase = (now % 3200) / 3200;
-    const pulse = reduceMotion ? 0.5 : (Math.sin(phase * Math.PI * 2) + 1) / 2;
+    entranceStartedAtRef.current ??= now;
+    const entranceProgress = reduceMotion
+      ? 1
+      : Math.min(1, (now - entranceStartedAtRef.current) / SOLAR_ENTRANCE_DURATION_MS);
+    const filterPhase = (now % 3600) / 3600;
+    const filterPulse = reduceMotion ? 0.5 : (Math.sin(filterPhase * Math.PI * 2) + 1) / 2;
+    const solarPhase = (now % 5600) / 5600;
+    const solarBreath = reduceMotion ? 0.5 : (Math.sin(solarPhase * Math.PI * 2) + 1) / 2;
+    const renderedRadius = radius * (hovered ? 1.08 : selected ? 1.04 : 1);
     context.save();
 
-    if (filterMatch) {
+    if (filterMatch && !node.isSelf) {
       context.beginPath();
-      context.arc(node.x, node.y, radius + (7 + pulse * 2) / scale, 0, Math.PI * 2);
-      context.strokeStyle = FILTER_HALO_COLOR[activeFilter];
-      context.globalAlpha = emphasized ? 0.42 + pulse * 0.18 : 0.2;
-      context.lineWidth = (1.3 + pulse * 0.45) / scale;
-      context.stroke();
+      context.arc(node.x, node.y, renderedRadius + (7.5 + filterPulse * 1.5) / scale, 0, Math.PI * 2);
+      context.fillStyle = FILTER_HALO_COLOR[activeFilter];
+      context.globalAlpha = emphasized ? 0.09 + filterPulse * 0.06 : 0.05;
+      context.fill();
     }
 
-    context.globalAlpha = emphasized || visualState === "active" ? 1 : 0.14;
+    context.globalAlpha = emphasized || visualState === "active" || visualState === "anchor" ? 1 : 0.24;
 
     if (node.strategicRelevance) {
       context.beginPath();
-      context.arc(node.x, node.y, radius + 3.5 / scale, 0, Math.PI * 2);
+      context.arc(node.x, node.y, renderedRadius + 3.5 / scale, 0, Math.PI * 2);
       context.strokeStyle = relevanceColor[node.strategicRelevance];
-      context.lineWidth = (selected || hovered ? 2.4 : 1.6) / scale;
+      context.lineWidth = (selected || hovered ? 2 : 1.45) / scale;
       context.stroke();
     }
 
-    if (selected || hovered) {
+    if (hovered && !selected && !filterMatch) {
       context.beginPath();
-      context.arc(node.x, node.y, radius + 6.5 / scale, 0, Math.PI * 2);
-      context.strokeStyle = selected ? "#315f58" : "#6b6e70";
-      context.lineWidth = 1.5 / scale;
+      context.arc(node.x, node.y, renderedRadius + 5.5 / scale, 0, Math.PI * 2);
+      context.strokeStyle = "#6b6e70";
+      context.lineWidth = 1.2 / scale;
       context.stroke();
     }
 
-    if (node.isSelf) {
-      drawDiamond(context, node.x, node.y, radius, 2 / scale);
-      context.fillStyle = "#1b1d1e";
-      context.fill();
+    if (node.visualRole === "solar-anchor") {
+      drawSolarAnchor(
+        context,
+        node.x,
+        node.y,
+        renderedRadius,
+        scale,
+        entranceProgress,
+        solarBreath,
+      );
     } else {
       context.beginPath();
-      context.arc(node.x, node.y, radius, 0, Math.PI * 2);
+      context.arc(node.x, node.y, renderedRadius, 0, Math.PI * 2);
       context.fillStyle = selected ? "#315f58" : "#faf9f6";
       context.fill();
       context.strokeStyle = selected ? "#315f58" : "#6b6e70";
@@ -277,12 +396,12 @@ export function ForceGraphCanvas({
       context.fillStyle = emphasized ? "#1b1d1e" : "#929594";
       context.textAlign = "left";
       context.textBaseline = "middle";
-      context.fillText(node.name, node.x + radius + 7 / scale, node.y);
+      context.fillText(node.name, node.x + renderedRadius + 7 / scale, node.y);
     } else {
       labelWidthsRef.current.set(node.personId, 0);
     }
     context.restore();
-  }, [activeFilter, activeId, hoveredId, isNodeEmphasized, matchingIds, reduceMotion, selectedId]);
+  }, [activeFilter, activeId, dataset.selfId, hoveredId, isNodeEmphasized, matchingIds, reduceMotion, selectedId]);
 
   const handleEngineStop = useCallback(() => {
     if (hasFittedRef.current) return;
@@ -302,7 +421,7 @@ export function ForceGraphCanvas({
         personId: node.personId,
         x: screen.x,
         y: screen.y,
-        radius: Math.min(9, Math.max(5, node.strength)),
+        radius: getGraphNodeScreenRadius(node.strength, node.isSelf),
         labelWidth: labelWidthsRef.current.get(node.personId) ?? node.name.length * 6.2,
       }];
     });
@@ -443,6 +562,23 @@ export function ForceGraphCanvas({
           linkDirectionalArrowLength={(link: LinkObject<GraphNode, GraphLink>) => link.directed ? 6 : 0}
           linkDirectionalArrowRelPos={0.72}
           linkLineDash={(link: LinkObject<GraphNode, GraphLink>) => link.kind === "introduced_by" ? [5, 4] : null}
+          linkDirectionalParticles={(link: LinkObject<GraphNode, GraphLink>) => getContinuousParticleCount(
+            link,
+            activeFilter,
+            isLinkEmphasized(link),
+            reduceMotion,
+          )}
+          linkDirectionalParticleColor={(link: LinkObject<GraphNode, GraphLink>) => isSelectedIntroduction(link)
+            ? "rgba(190, 143, 59, 0.98)"
+            : "rgba(91, 116, 98, 0.96)"}
+          linkDirectionalParticleSpeed={(link: LinkObject<GraphNode, GraphLink>) => {
+            if (link.motion !== "selection-direction" || reduceMotion) return 0;
+            return isSelectedIntroduction(link) ? 0.012 : 0.0035;
+          }}
+          linkDirectionalParticleWidth={(link: LinkObject<GraphNode, GraphLink>) => {
+            if (link.motion !== "selection-direction" || reduceMotion) return 0;
+            return isSelectedIntroduction(link) ? 3.2 : 2.6;
+          }}
           linkWidth={(link: LinkObject<GraphNode, GraphLink>) => getGraphLinkMetrics(link).width}
           maxZoom={4.5}
           minZoom={0.35}

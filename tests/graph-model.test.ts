@@ -44,6 +44,7 @@ function node(id: string): GraphNode {
     personId: id,
     name: id,
     isSelf: id === "self",
+    visualRole: id === "self" ? "solar-anchor" : "planet",
     strength: 5,
   };
 }
@@ -55,6 +56,7 @@ function link(overrides: Partial<GraphLink> & Pick<GraphLink, "source" | "target
     id: `${source}:${target}`,
     kind: "direct",
     directed: false,
+    motion: "none",
     ...overrides,
   };
 }
@@ -88,11 +90,15 @@ describe("graph model", () => {
     const maya = model.nodes.find(({ id }) => id === "maya");
     const theo = model.nodes.find(({ id }) => id === "theo");
 
-    expect(selfNode).toEqual(expect.objectContaining({ isSelf: true }));
+    expect(selfNode).toEqual(expect.objectContaining({
+      isSelf: true,
+      visualRole: "solar-anchor",
+    }));
     expect(maya).toEqual(expect.objectContaining({
       isSelf: false,
       strength: 8,
       strategicRelevance: "high",
+      visualRole: "planet",
     }));
     expect(theo).toEqual(expect.objectContaining({
       isSelf: false,
@@ -110,12 +116,14 @@ describe("graph model", () => {
       id: "direct:self:maya",
       kind: "direct",
       directed: false,
+      motion: "none",
       strength: 4,
     }));
     expect(model.links).toContainEqual(expect.objectContaining({
       id: "introduced_by:maya:theo",
       kind: "introduced_by",
       directed: true,
+      motion: "selection-direction",
     }));
   });
 
