@@ -7,6 +7,9 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import type { PeopleDataset } from "@/types/person";
 import { makePerson } from "./fixtures/people";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+}));
 vi.mock("@/components/network/NetworkGraph", () => ({
   NetworkGraph: ({ selectedId }: { selectedId: string | null }) => (
     <div data-testid="network-graph" data-selected-id={selectedId ?? ""} />
@@ -52,7 +55,17 @@ describe("SearchCommand", () => {
     const user = userEvent.setup();
     const onSelect = vi.fn();
 
-    render(<SearchCommand people={people} onSelect={onSelect} />);
+    render(
+      <ThemeProvider>
+        <SearchCommand
+          activeFilter="all"
+          onSelect={onSelect}
+          onSelectFilter={vi.fn()}
+          people={people}
+          selfId="self"
+        />
+      </ThemeProvider>,
+    );
     const opener = screen.getByRole("button", { name: /search/i });
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const input = await screen.findByRole("combobox", { name: /search people/i });
@@ -68,7 +81,17 @@ describe("SearchCommand", () => {
   it("opens with Control+K and closes with Escape", async () => {
     const user = userEvent.setup();
 
-    render(<SearchCommand people={people} onSelect={vi.fn()} />);
+    render(
+      <ThemeProvider>
+        <SearchCommand
+          activeFilter="all"
+          onSelect={vi.fn()}
+          onSelectFilter={vi.fn()}
+          people={people}
+          selfId="self"
+        />
+      </ThemeProvider>,
+    );
     const opener = screen.getByRole("button", { name: /search/i });
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
     expect(await screen.findByRole("dialog")).toBeVisible();
@@ -81,14 +104,24 @@ describe("SearchCommand", () => {
   it("uses an accessible dialog, listbox, and active descendant while preserving browser shortcuts", async () => {
     const user = userEvent.setup();
 
-    render(<SearchCommand people={people} onSelect={vi.fn()} />);
+    render(
+      <ThemeProvider>
+        <SearchCommand
+          activeFilter="all"
+          onSelect={vi.fn()}
+          onSelectFilter={vi.fn()}
+          people={people}
+          selfId="self"
+        />
+      </ThemeProvider>,
+    );
     const unrelatedShortcut = new KeyboardEvent("keydown", { key: "l", metaKey: true, cancelable: true });
     window.dispatchEvent(unrelatedShortcut);
     expect(unrelatedShortcut.defaultPrevented).toBe(false);
 
     fireEvent.keyDown(window, { key: "k", metaKey: true });
     const input = await screen.findByRole("combobox", { name: /search people/i });
-    const listbox = screen.getByRole("listbox", { name: /people/i });
+    const listbox = screen.getByRole("listbox", { name: /results/i });
 
     expect(input).toHaveAttribute("aria-controls", listbox.id);
     await user.keyboard("{ArrowDown}");
@@ -96,16 +129,28 @@ describe("SearchCommand", () => {
     expect(listbox).toHaveAttribute("aria-activedescendant", input.getAttribute("aria-activedescendant"));
 
     await user.type(input, "not-a-person");
-    expect(screen.getByText("No people found.")).toBeVisible();
+    expect(screen.getByText("No people or actions found.")).toBeVisible();
   });
 
   it("opens from its semantic trigger and resets an empty query when reopened", async () => {
     const user = userEvent.setup();
 
-    render(<SearchCommand people={people} onSelect={vi.fn()} />);
+    render(
+      <ThemeProvider>
+        <SearchCommand
+          activeFilter="all"
+          onSelect={vi.fn()}
+          onSelectFilter={vi.fn()}
+          people={people}
+          selfId="self"
+        />
+      </ThemeProvider>,
+    );
     await user.click(screen.getByRole("button", { name: /search/i }));
     const input = await screen.findByRole("combobox", { name: /search people/i });
-    expect(screen.getByRole("option", { name: /charlie guo/i })).toBeVisible();
+    // The self record anchors the map; it is never a search destination.
+    expect(screen.queryByRole("option", { name: /charlie guo/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: /maya patel/i })).toBeVisible();
 
     await user.type(input, "nobody");
     await user.keyboard("{Escape}");
@@ -116,7 +161,17 @@ describe("SearchCommand", () => {
   it("returns focus to its opener after an outside dismissal", async () => {
     const user = userEvent.setup();
 
-    render(<SearchCommand people={people} onSelect={vi.fn()} />);
+    render(
+      <ThemeProvider>
+        <SearchCommand
+          activeFilter="all"
+          onSelect={vi.fn()}
+          onSelectFilter={vi.fn()}
+          people={people}
+          selfId="self"
+        />
+      </ThemeProvider>,
+    );
     const opener = screen.getByRole("button", { name: /search/i });
     await user.click(opener);
     const overlay = document.querySelector<HTMLElement>("[data-state='open'][aria-hidden='true']");
@@ -130,7 +185,17 @@ describe("SearchCommand", () => {
   it("highlights the complete source text for accent-insensitive, whitespace-collapsed matches", async () => {
     const user = userEvent.setup();
 
-    render(<SearchCommand people={people} onSelect={vi.fn()} />);
+    render(
+      <ThemeProvider>
+        <SearchCommand
+          activeFilter="all"
+          onSelect={vi.fn()}
+          onSelectFilter={vi.fn()}
+          people={people}
+          selfId="self"
+        />
+      </ThemeProvider>,
+    );
     await user.click(screen.getByRole("button", { name: /search/i }));
     await user.type(await screen.findByRole("combobox", { name: /search people/i }), "elise worthington");
 

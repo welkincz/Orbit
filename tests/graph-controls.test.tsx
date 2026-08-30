@@ -1,27 +1,18 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { RelationshipFilterBar } from "@/components/network/RelationshipFilterBar";
+import { GraphControls } from "@/components/network/GraphControls";
 
-describe("RelationshipFilterBar", () => {
+describe("GraphControls", () => {
   afterEach(cleanup);
 
-  it("exposes one pressed filter and sends filter and reset actions", async () => {
+  it("sends the reset action and announces it", async () => {
     const user = userEvent.setup();
-    const onFilterChange = vi.fn();
     const onResetLayout = vi.fn();
     render(
-      <RelationshipFilterBar
-        activeFilter="all"
-        onFilterChange={onFilterChange}
-        onResetLayout={onResetLayout}
-      />,
+      <GraphControls onResetLayout={onResetLayout} />,
     );
 
-    expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByRole("button", { name: "Targets" })).toHaveAttribute("aria-pressed", "false");
-    await user.click(screen.getByRole("button", { name: "Reconnect" }));
-    expect(onFilterChange).toHaveBeenCalledWith("reconnect");
     await user.click(screen.getByRole("button", { name: "Reset layout" }));
     expect(onResetLayout).toHaveBeenCalledOnce();
     expect(screen.getByText("Layout reset.")).toBeVisible();
@@ -31,11 +22,7 @@ describe("RelationshipFilterBar", () => {
     vi.useFakeTimers();
     try {
       render(
-        <RelationshipFilterBar
-          activeFilter="all"
-          onFilterChange={vi.fn()}
-          onResetLayout={vi.fn()}
-        />,
+        <GraphControls onResetLayout={vi.fn()} />,
       );
 
       const status = screen.getByRole("status");
@@ -53,11 +40,7 @@ describe("RelationshipFilterBar", () => {
   it("blanks and re-announces an immediately repeated reset", async () => {
     const onResetLayout = vi.fn();
     render(
-      <RelationshipFilterBar
-        activeFilter="all"
-        onFilterChange={vi.fn()}
-        onResetLayout={onResetLayout}
-      />,
+      <GraphControls onResetLayout={onResetLayout} />,
     );
 
     const reset = screen.getByRole("button", { name: "Reset layout" });

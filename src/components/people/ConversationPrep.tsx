@@ -16,10 +16,6 @@ export const CONVERSATION_PREP_TEMPLATE = `## Conversation Prep
 ### Next conversation
 `;
 
-interface ConversationPrepPanelProps {
-  prep: ConversationPrep;
-}
-
 const durableSections: ReadonlyArray<{
   key: "theirWorld" | "whatTheyCareAbout" | "remember";
   label: string;
@@ -29,13 +25,45 @@ const durableSections: ReadonlyArray<{
   { key: "remember", label: "Remember" },
 ];
 
-function hasConversationPrep(prep: ConversationPrep): boolean {
+export function hasConversationPrep(prep: ConversationPrep): boolean {
   return Object.values(prep).some((value) => value.trim().length > 0);
 }
 
-export function ConversationPrepPanel({ prep }: ConversationPrepPanelProps) {
+export function hasDurablePrep(prep: ConversationPrep): boolean {
+  return durableSections.some(({ key }) => prep[key].trim().length > 0);
+}
+
+/**
+ * The panel's one job is answering "what do I do next with this person", so the
+ * two actionable sections sit together at the top in the only bordered block.
+ */
+export function NextActions({ prep, followUp }: { prep: ConversationPrep; followUp: string }) {
+  const nextConversation = prep.nextConversation.trim();
+  const trimmedFollowUp = followUp.trim();
+
+  if (!nextConversation && !trimmedFollowUp) return <PrepEmptyState />;
+
+  return (
+    <section aria-labelledby="next-actions-heading" className="next-actions">
+      <h3 className="next-actions__heading" id="next-actions-heading">Do next</h3>
+      {nextConversation && (
+        <div className="next-actions__group">
+          <h4 className="next-actions__subheading">Next conversation</h4>
+          <MarkdownContent markdown={prep.nextConversation} />
+        </div>
+      )}
+      {trimmedFollowUp && (
+        <div className="next-actions__group">
+          <h4 className="next-actions__subheading">Follow-up</h4>
+          <MarkdownContent markdown={followUp} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PrepEmptyState() {
   const [copyStatus, setCopyStatus] = useState("");
-  const hasPrep = hasConversationPrep(prep);
 
   async function copyTemplate() {
     try {
@@ -47,40 +75,45 @@ export function ConversationPrepPanel({ prep }: ConversationPrepPanelProps) {
   }
 
   return (
+    <div className="conversation-prep__empty">
+      <p>Nothing planned yet. Add known context and questions that can make the next conversation more useful.</p>
+      <button
+        aria-label="Copy Conversation Prep template"
+        className="text-action"
+        onClick={copyTemplate}
+        type="button"
+      >
+        <Copy aria-hidden="true" className="icon-sm" strokeWidth={1.75} />
+        Copy template
+      </button>
+      <span aria-live="polite" className="person-detail__status">{copyStatus}</span>
+    </div>
+  );
+}
+
+/** The durable, slow-changing half of prep: read before a conversation, rarely edited. */
+export function PrepDisclosures({ prep }: { prep: ConversationPrep }) {
+  const present = durableSections.filter(({ key }) => prep[key].trim());
+  if (present.length === 0) return null;
+
+  return (
     <section aria-labelledby="conversation-prep-heading" className="conversation-prep">
-      <h3 className="detail-section__heading" id="conversation-prep-heading">Conversation Prep</h3>
-      {hasPrep ? (
-        <div className="conversation-prep__content">
-          {prep.nextConversation.trim() && (
-            <section aria-labelledby="next-conversation-heading" className="conversation-prep__next">
-              <h4 className="conversation-prep__subheading" id="next-conversation-heading">Next conversation</h4>
-              <MarkdownContent markdown={prep.nextConversation} />
-            </section>
-          )}
-          {durableSections.map(({ key, label }, index) => prep[key].trim() ? (
-            <details className="conversation-prep__disclosure" key={key} open={index === 0}>
-              <summary className="conversation-prep__summary">{label}</summary>
-              <div className="conversation-prep__body">
-                <MarkdownContent markdown={prep[key]} />
-              </div>
-            </details>
-          ) : null)}
-        </div>
-      ) : (
-        <div className="conversation-prep__empty">
-          <p>Add known context and questions that can make the next conversation more useful.</p>
-          <button
-            aria-label="Copy Conversation Prep template"
-            className="text-action"
-            onClick={copyTemplate}
-            type="button"
-          >
-            <Copy aria-hidden="true" className="size-3.5" strokeWidth={1.75} />
-            Copy template
-          </button>
-          <span aria-live="polite" className="person-detail__status">{copyStatus}</span>
-        </div>
-      )}
+      <h3
+        className="detail-section__heading detail-section__heading--quiet"
+        id="conversation-prep-heading"
+      >
+        Conversation prep
+      </h3>
+      <div className="conversation-prep__content">
+        {present.map(({ key, label }, index) => (
+          <details className="conversation-prep__disclosure" key={key} open={index === 0}>
+            <summary className="conversation-prep__summary">{label}</summary>
+            <div className="conversation-prep__body">
+              <MarkdownContent markdown={prep[key]} />
+            </div>
+          </details>
+        ))}
+      </div>
     </section>
   );
 }

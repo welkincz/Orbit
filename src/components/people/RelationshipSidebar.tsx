@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Crosshair } from "lucide-react";
 import { headingId, titleCase } from "@/lib/format";
 import type { RelationshipFilter } from "@/lib/graph-filters";
 import {
@@ -23,88 +24,22 @@ interface RelationshipSidebarProps {
   onFilterChange?: (filter: RelationshipFilter) => void;
 }
 
-interface PersonRowProps {
+interface SidebarRow {
   person: Person;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
   secondary: React.ReactNode;
 }
 
-function PersonRow({ person, selectedId, onSelect, secondary }: PersonRowProps) {
-  const professionalContext = [person.role, person.team, person.company].filter(Boolean).join(" · ");
-
-  return (
-    <button
-      aria-current={selectedId === person.id ? "true" : undefined}
-      className="relationship-row"
-      data-person-id={person.id}
-      onClick={() => onSelect(person.id)}
-      type="button"
-    >
-      <span className="relationship-row__identity">
-        <span className="relationship-row__name">{person.name}</span>
-        {professionalContext && (
-          <span className="relationship-row__context">{professionalContext}</span>
-        )}
-      </span>
-      <span className="relationship-row__meta">{secondary}</span>
-    </button>
-  );
-}
-
-interface SidebarSectionProps {
+interface SidebarSection {
   heading: string;
   emptyMessage: string;
   filter: Exclude<RelationshipFilter, "all">;
-  activeFilter: RelationshipFilter;
-  onFilterChange?: (filter: RelationshipFilter) => void;
-  children: React.ReactNode[];
+  rows: SidebarRow[];
 }
 
-function SidebarSection({
-  heading,
-  emptyMessage,
-  filter,
-  activeFilter,
-  onFilterChange,
-  children,
-}: SidebarSectionProps) {
-  const sectionId = headingId(heading);
-  const active = activeFilter === filter;
-
-  return (
-    <section aria-labelledby={sectionId} className="relationship-section" data-active={active || undefined}>
-      <h2 className="relationship-section__heading" id={sectionId}>
-        <button
-          aria-pressed={active}
-          className="relationship-section__toggle"
-          onClick={() => onFilterChange?.(active ? "all" : filter)}
-          title={active ? `Show the whole network again` : `Focus the map on ${heading}`}
-          type="button"
-        >
-          <span className="relationship-section__label">{heading}</span>
-          <span className="relationship-section__count tabular">{children.length}</span>
-        </button>
-      </h2>
-      {children.length > 0 ? children : <p className="relationship-section__empty">{emptyMessage}</p>}
-    </section>
-  );
-}
-
-function reconnectRow(candidate: ReconnectCandidate, selectedId: string | null, onSelect: (id: string) => void) {
-  const secondary = candidate.overdueDays === null
+function reconnectSecondary(candidate: ReconnectCandidate): React.ReactNode {
+  return candidate.overdueDays === null
     ? <span className="relationship-row__never" title="Not yet contacted">Never</span>
     : <span title={`${candidate.overdueDays} days overdue`}>{candidate.overdueDays}d</span>;
-
-  return (
-    <PersonRow
-      key={candidate.person.id}
-      onSelect={onSelect}
-      person={candidate.person}
-      secondary={secondary}
-      selectedId={selectedId}
-    />
-  );
 }
 
 export function RelationshipSidebar({
@@ -115,81 +50,162 @@ export function RelationshipSidebar({
   onSelect,
   onFilterChange,
 }: RelationshipSidebarProps) {
-  const innerCircle = useMemo(() => getInnerCircle(dataset.people), [dataset.people]);
-  const reconnectCandidates = useMemo(
-    () => getReconnectCandidates(dataset.people, currentDate),
-    [dataset.people, currentDate],
-  );
-  const recentContacts = useMemo(
-    () => getRecentContacts(dataset.people, currentDate),
-    [dataset.people, currentDate],
-  );
-  const targets = useMemo(() => getTargets(dataset.people), [dataset.people]);
+  const listRef = useRef<HTMLDivElement>(null);
+  const [focusedIndex, setFocusedIndex] = useState(0);
 
-  const sectionProps = { activeFilter, onFilterChange };
+  const sections = useMemo((): SidebarSection[] => [
+    {
+      heading: "Inner circle",
+      emptyMessage: "No inner-circle contacts.",
+      filter: "inner-circle",
+      rows: getInnerCircle(dataset.people).map((person) => ({
+        person,
+        secondary: <RelationshipStrength value={person.relationshipStrength} variant="compact" />,
+      })),
+    },
+    {
+      heading: "Reconnect",
+      emptyMessage: "You're caught up.",
+      filter: "reconnect",
+      rows: getReconnectCandidates(dataset.people, currentDate).map((candidate) => ({
+        person: candidate.person,
+        secondary: reconnectSecondary(candidate),
+      })),
+    },
+    {
+      heading: "Recent conversations",
+      emptyMessage: "No recent conversations.",
+      filter: "recent",
+      rows: getRecentContacts(dataset.people, currentDate).map((person) => ({
+        person,
+        secondary: <span className="tabular">{person.effectiveLastContact ?? ""}</span>,
+      })),
+    },
+    {
+      heading: "Targets",
+      emptyMessage: "No targets yet.",
+      filter: "targets",
+      rows: getTargets(dataset.people).map((person) => ({
+        person,
+        secondary: person.strategicRelevance
+          ? (
+            <span className="relevance-chip" data-relevance={person.strategicRelevance}>
+              {titleCase(person.strategicRelevance)}
+            </span>
+          )
+          : "",
+      })),
+    },
+  ], [currentDate, dataset.people]);
+
+  // A roving tabindex keeps the rail one Tab stop: arrows and j/k move inside
+  // it, so a keyboard user is not walked through every person to reach the map.
+  const rowCount = sections.reduce((total, section) => total + section.rows.length, 0);
+  const activeIndex = rowCount === 0 ? 0 : Math.min(focusedIndex, rowCount - 1);
+
+  function moveFocus(delta: number | "first" | "last") {
+    const rows = listRef.current?.querySelectorAll<HTMLButtonElement>("[data-relationship-row]");
+    if (!rows || rows.length === 0) return;
+
+    const next = delta === "first"
+      ? 0
+      : delta === "last"
+        ? rows.length - 1
+        : Math.min(rows.length - 1, Math.max(0, activeIndex + delta));
+
+    // Focusing the row fires its own onFocus, which is what records the index.
+    rows[next].focus();
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+    if (event.key === "ArrowDown" || event.key === "j") {
+      event.preventDefault();
+      moveFocus(1);
+    } else if (event.key === "ArrowUp" || event.key === "k") {
+      event.preventDefault();
+      moveFocus(-1);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      moveFocus("first");
+    } else if (event.key === "End") {
+      event.preventDefault();
+      moveFocus("last");
+    }
+  }
+
+  let rowIndex = -1;
 
   return (
     <aside aria-label="Relationship views" className="relationship-sidebar">
-      <div className="relationship-sidebar__content">
-        <SidebarSection
-          {...sectionProps}
-          emptyMessage="No inner-circle contacts."
-          filter="inner-circle"
-          heading="Inner circle"
-        >
-          {innerCircle.map((person) => (
-            <PersonRow
-              key={person.id}
-              onSelect={onSelect}
-              person={person}
-              secondary={<RelationshipStrength value={person.relationshipStrength} />}
-              selectedId={selectedId}
-            />
-          ))}
-        </SidebarSection>
-        <Separator className="relationship-divider" />
-        <SidebarSection
-          {...sectionProps}
-          emptyMessage="You're caught up."
-          filter="reconnect"
-          heading="Reconnect"
-        >
-          {reconnectCandidates.map((candidate) => reconnectRow(candidate, selectedId, onSelect))}
-        </SidebarSection>
-        <Separator className="relationship-divider" />
-        <SidebarSection
-          {...sectionProps}
-          emptyMessage="No recent conversations."
-          filter="recent"
-          heading="Recent conversations"
-        >
-          {recentContacts.map((person) => (
-            <PersonRow
-              key={person.id}
-              onSelect={onSelect}
-              person={person}
-              secondary={<span className="tabular">{person.effectiveLastContact ?? ""}</span>}
-              selectedId={selectedId}
-            />
-          ))}
-        </SidebarSection>
-        <Separator className="relationship-divider" />
-        <SidebarSection
-          {...sectionProps}
-          emptyMessage="No targets yet."
-          filter="targets"
-          heading="Targets"
-        >
-          {targets.map((person) => (
-            <PersonRow
-              key={person.id}
-              onSelect={onSelect}
-              person={person}
-              secondary={person.strategicRelevance ? titleCase(person.strategicRelevance) : ""}
-              selectedId={selectedId}
-            />
-          ))}
-        </SidebarSection>
+      <div className="relationship-sidebar__content" onKeyDown={handleKeyDown} ref={listRef}>
+        {sections.map((section, sectionIndex) => {
+          const sectionId = headingId(section.heading);
+          const active = activeFilter === section.filter;
+
+          return (
+            <div key={section.filter}>
+              {sectionIndex > 0 && <Separator className="relationship-divider" />}
+              <section
+                aria-labelledby={sectionId}
+                className="relationship-section"
+                data-active={active || undefined}
+              >
+                <h2 className="relationship-section__heading" id={sectionId}>
+                  <button
+                    aria-pressed={active}
+                    className="relationship-section__toggle"
+                    onClick={() => onFilterChange?.(active ? "all" : section.filter)}
+                    title={active
+                      ? "Show the whole network again"
+                      : `Focus the map on ${section.heading}`}
+                    type="button"
+                  >
+                    <Crosshair
+                      aria-hidden="true"
+                      className="relationship-section__focus icon-sm"
+                      strokeWidth={2}
+                    />
+                    <span className="relationship-section__label">{section.heading}</span>
+                    <span className="relationship-section__count tabular">{section.rows.length}</span>
+                  </button>
+                </h2>
+                {section.rows.length > 0
+                  ? section.rows.map((row) => {
+                    rowIndex += 1;
+                    const currentRowIndex = rowIndex;
+                    const professionalContext = [row.person.role, row.person.team, row.person.company]
+                      .filter(Boolean)
+                      .join(" · ");
+
+                    return (
+                      <button
+                        aria-current={selectedId === row.person.id ? "true" : undefined}
+                        className="relationship-row"
+                        data-person-id={row.person.id}
+                        data-relationship-row=""
+                        key={`${section.filter}:${row.person.id}`}
+                        onClick={() => onSelect(row.person.id)}
+                        onFocus={() => setFocusedIndex(currentRowIndex)}
+                        tabIndex={currentRowIndex === activeIndex ? 0 : -1}
+                        type="button"
+                      >
+                        <span className="relationship-row__identity">
+                          <span className="relationship-row__name">{row.person.name}</span>
+                          {professionalContext && (
+                            <span className="relationship-row__context">{professionalContext}</span>
+                          )}
+                        </span>
+                        <span className="relationship-row__meta">{row.secondary}</span>
+                      </button>
+                    );
+                  })
+                  : <p className="relationship-section__empty">{section.emptyMessage}</p>}
+              </section>
+            </div>
+          );
+        })}
       </div>
     </aside>
   );

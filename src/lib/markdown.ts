@@ -8,6 +8,7 @@ import { unified } from "unified";
 import { isISODate, todayISO } from "@/lib/dates";
 import {
   aggregatePeopleDataErrors,
+  EmptyPeopleDirectoryError,
   normalizeFrontmatter,
   PeopleDataError,
   toPeopleDataError,
@@ -291,9 +292,7 @@ export async function loadPeopleFromDirectory(
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .sort((left, right) => left.name.localeCompare(right.name));
 
-  if (entries.length === 0) {
-    throw new PeopleDataError("Invalid people data", { issues: ["No Markdown files found."] });
-  }
+  if (entries.length === 0) throw new EmptyPeopleDirectoryError(directory);
 
   const results = await Promise.allSettled(entries.map(async (entry) => {
     const absolutePath = resolve(directory, entry.name);

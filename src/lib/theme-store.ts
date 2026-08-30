@@ -50,7 +50,6 @@ function initialSnapshot(environment: ThemeEnvironment): ThemeStoreSnapshot {
 
 export function createThemeStore(environment: ThemeEnvironment): ThemeStore {
   let snapshot = initialSnapshot(environment);
-  let destroyed = false;
   let subscriptionsStarted = false;
   let cancelStorageSubscription: (() => void) | null = null;
   let cancelSystemSubscription: (() => void) | null = null;
@@ -61,7 +60,7 @@ export function createThemeStore(environment: ThemeEnvironment): ThemeStore {
   const emit = () => listeners.forEach((listener) => listener());
 
   const finishTransition = (version: number) => {
-    if (destroyed || version !== transitionVersion || snapshot.transition === "idle") return;
+    if (version !== transitionVersion || snapshot.transition === "idle") return;
     environment.clearRootTransition();
     snapshot = { ...snapshot, transition: "idle" };
     cancelTransitionCleanup = null;
@@ -69,7 +68,6 @@ export function createThemeStore(environment: ThemeEnvironment): ThemeStore {
   };
 
   const moveTo = (theme: ThemeName, source: ThemeSnapshot["source"]) => {
-    if (destroyed) return;
     if (snapshot.theme === theme) {
       if (snapshot.source === source) return;
       snapshot = { theme, source, transition: snapshot.transition };
@@ -91,7 +89,7 @@ export function createThemeStore(environment: ThemeEnvironment): ThemeStore {
   };
 
   const startSubscriptions = () => {
-    if (subscriptionsStarted || destroyed) return;
+    if (subscriptionsStarted) return;
     subscriptionsStarted = true;
     environment.applyRootTheme(snapshot.theme, "idle");
     cancelStorageSubscription = environment.subscribeToStorage((preference) => {
@@ -106,28 +104,42 @@ export function createThemeStore(environment: ThemeEnvironment): ThemeStore {
     });
   };
 
+  // Browser subscriptions are reference counted against live listeners rather
+  // than torn down for good. React StrictMode and Fast Refresh both mount,
+  // unmount, and remount a provider; a one-way teardown left the store alive
+  // but inert, so the theme toggle silently stopped working in development.
+  const stopSubscriptions = () => {
+    transitionVersion += 1;
+    cancelTransitionCleanup?.();
+    cancelTransitionCleanup = null;
+    cancelStorageSubscription?.();
+    cancelStorageSubscription = null;
+    cancelSystemSubscription?.();
+    cancelSystemSubscription = null;
+    subscriptionsStarted = false;
+    // A remount mid-transition would otherwise keep reporting a transition that
+    // no longer has a timer to end it.
+    if (snapshot.transition !== "idle") snapshot = { ...snapshot, transition: "idle" };
+  };
+
   return {
     getSnapshot: () => snapshot,
     getServerSnapshot: () => SERVER_STORE_SNAPSHOT,
     subscribe(listener) {
-      if (destroyed) return () => {};
       listeners.add(listener);
       startSubscriptions();
-      return () => listeners.delete(listener);
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0) stopSubscriptions();
+      };
     },
     toggleTheme() {
-      if (destroyed) return;
       const theme = snapshot.theme === "dark" ? "light" : "dark";
       environment.writeStoredPreference(theme);
       moveTo(theme, "manual");
     },
     destroy() {
-      if (destroyed) return;
-      destroyed = true;
-      transitionVersion += 1;
-      cancelTransitionCleanup?.();
-      cancelStorageSubscription?.();
-      cancelSystemSubscription?.();
+      stopSubscriptions();
       listeners.clear();
     },
   };

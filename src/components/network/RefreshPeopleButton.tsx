@@ -21,7 +21,7 @@ export function RefreshPeopleButton({ label = "Refresh" }: RefreshPeopleButtonPr
     >
       <RefreshCw
         aria-hidden="true"
-        className={`size-4 transition-transform duration-[120ms]${isPending ? " rotate-180" : ""}`}
+        className={`icon refresh-icon${isPending ? " refresh-icon--pending" : ""}`}
       />
       {label}
     </button>

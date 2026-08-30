@@ -1,5 +1,3 @@
-@import "tailwindcss";
-
 :root {
   --canvas: #f4f3ef;
   --header: #faf9f6;
@@ -11,7 +9,8 @@
   --line: #d9d7d0;
   --line-strong: #c6c3ba;
   --selected: #315f58;
-  --relevance-high: #b65f43;
+  --attention: #b65f43;
+  --relevance-high: #6c648f;
   --relevance-medium: #748468;
   --relevance-low: #969895;
   --radius-sm: 4px;
@@ -29,6 +28,9 @@
   --floating-control: rgba(250, 249, 246, 0.94);
   --dialog-overlay: rgba(27, 29, 30, 0.22);
   --command-match: rgba(182, 95, 67, 0.12);
+  --mark-core: #1b1d1e;
+  --mark-ring: rgba(154, 122, 46, 0.72);
+  --mark-accent: #ad8235;
   --header-height: 58px;
 }
 
@@ -43,7 +45,8 @@ html[data-theme="dark"] {
   --line: #26323a;
   --line-strong: #35434c;
   --selected: #6f99a6;
-  --relevance-high: #d48469;
+  --attention: #d48469;
+  --relevance-high: #9a92c4;
   --relevance-medium: #94a683;
   --relevance-low: #89969b;
   --overlay-shadow: 0 22px 70px rgba(0, 0, 0, 0.46);
@@ -54,6 +57,9 @@ html[data-theme="dark"] {
   --floating-control: rgba(21, 29, 36, 0.92);
   --dialog-overlay: rgba(0, 0, 0, 0.54);
   --command-match: rgba(212, 132, 105, 0.16);
+  --mark-core: #315b68;
+  --mark-ring: rgba(189, 145, 68, 0.6);
+  --mark-accent: #bd9144;
 }
 
 html[data-theme-transition] body,
@@ -63,7 +69,6 @@ html[data-theme-transition] .relationship-sidebar,
 html[data-theme-transition] .orbit-graph,
 html[data-theme-transition] .orbit-detail-motion,
 html[data-theme-transition] .person-detail,
-html[data-theme-transition] .graph-filter-bar,
 html[data-theme-transition] .graph-reset-button,
 html[data-theme-transition] .graph-tooltip,
 html[data-theme-transition] .dialog-content,
@@ -81,6 +86,55 @@ html[data-theme-transition] .orbit-graph::after {
 
 * {
   box-sizing: border-box;
+}
+
+/* Minimal base normalization. This replaces the preflight that came with
+   Tailwind, which the app carried for five utility classes. Only the defaults
+   Orbit's own rules assume are reset. */
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+blockquote,
+dl,
+dd,
+pre {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+img,
+svg,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 html,
@@ -121,6 +175,35 @@ input,
   font-variant-numeric: tabular-nums;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+  padding: 0;
+  margin: -1px;
+}
+
+.min-w-0 {
+  min-width: 0;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.icon-sm {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
 .orbit-shell {
   display: flex;
   height: 100dvh;
@@ -148,15 +231,45 @@ input,
 .orbit-brand {
   display: flex;
   min-width: 0;
-  align-items: baseline;
-  gap: 10px;
+  align-items: center;
+  gap: 11px;
 }
 
+.orbit-wordmark {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.orbit-mark {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  display: block;
+}
+
+/* Deliberately smaller and looser than a person's name. The app is the room,
+   not the subject; heavy negative tracking at 19px read as a startup logo. */
 .orbit-title {
-  font-size: 19px;
-  font-weight: 680;
-  letter-spacing: -0.025em;
+  font-size: 15px;
+  font-weight: 620;
+  letter-spacing: -0.005em;
   line-height: 1;
+}
+
+.orbit-brand__rule {
+  width: 1px;
+  height: 15px;
+  flex: 0 0 auto;
+  background: var(--line-strong);
+}
+
+.orbit-meta {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 10px;
 }
 
 .orbit-count {
@@ -323,6 +436,14 @@ html[data-theme="dark"] .theme-toggle__orb::before {
   opacity: 0.52;
 }
 
+.refresh-icon {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.refresh-icon--pending {
+  transform: rotate(180deg);
+}
+
 .orbit-kbd {
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -357,7 +478,7 @@ html[data-theme="dark"] .theme-toggle__orb::before {
 .data-warnings__icon {
   flex: 0 0 auto;
   margin-top: 2px;
-  color: var(--relevance-high);
+  color: var(--attention);
 }
 
 .data-warnings__list {
@@ -422,32 +543,53 @@ html[data-theme="dark"] .theme-toggle__orb::before {
 }
 
 .relationship-section__toggle {
-  display: flex;
+  display: grid;
   width: 100%;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  border: 0;
+  grid-template-columns: 13px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: none;
-  padding: 2px 4px;
-  margin: 0 -4px;
+  padding: 4px 5px;
+  margin: 0 -5px;
   color: var(--muted);
   font: inherit;
   letter-spacing: inherit;
   text-transform: inherit;
+  text-align: left;
   cursor: pointer;
-  transition: color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out);
+  transition:
+    color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out);
+}
+
+/* The crosshair is always drawn: the heading has to look like the map control
+   it is, not like a label that happens to react to clicks. */
+.relationship-section__focus {
+  opacity: 0.4;
+  transition: opacity var(--motion-fast) var(--ease-out);
 }
 
 .relationship-section__toggle:hover {
+  border-color: var(--line);
   background: var(--row-hover);
   color: var(--ink);
 }
 
+.relationship-section__toggle:hover .relationship-section__focus {
+  opacity: 0.85;
+}
+
 .relationship-section__toggle[aria-pressed="true"] {
+  border-color: var(--selected-border);
   background: var(--selected-soft);
   color: var(--selected);
+}
+
+.relationship-section__toggle[aria-pressed="true"] .relationship-section__focus {
+  opacity: 1;
 }
 
 .relationship-section__count {
@@ -479,7 +621,7 @@ html[data-theme="dark"] .theme-toggle__orb::before {
 }
 
 .relationship-row__never {
-  color: var(--relevance-high);
+  color: var(--attention);
   font-variant-numeric: normal;
   letter-spacing: 0.02em;
 }
@@ -617,17 +759,41 @@ html[data-theme-transition="entering-dark"] .orbit-graph::after {
   }
 }
 
-.orbit-graph::before {
+.orbit-graph__view-label {
   position: absolute;
   z-index: 3;
-  top: 13px;
+  top: 12px;
   left: 15px;
-  color: var(--faint);
-  content: "RELATIONSHIP FIELD";
-  font-size: 9px;
-  font-weight: 720;
-  letter-spacing: 0.12em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0.045em;
   pointer-events: none;
+}
+
+.orbit-graph-placeholder {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.orbit-graph-placeholder::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 13px;
+  height: 13px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--sidebar);
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.orbit-graph-canvas:focus-visible {
+  outline: 2px solid var(--selected);
+  outline-offset: -2px;
 }
 
 .orbit-graph-canvas {
@@ -655,50 +821,10 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   right: 13px;
   display: flex;
   flex-wrap: wrap;
-  max-width: calc(100% - 155px);
+  max-width: calc(100% - 220px);
   align-items: center;
   justify-content: flex-end;
   gap: 7px;
-}
-
-.graph-filter-bar {
-  display: flex;
-  overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--floating-control);
-}
-
-.graph-filter-button,
-.graph-reset-button {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  font-size: 10.5px;
-  font-weight: 650;
-  line-height: 1;
-  white-space: nowrap;
-}
-
-.graph-filter-button {
-  border-right: 1px solid var(--line);
-  padding: 8px 9px;
-}
-
-.graph-filter-button:last-child {
-  border-right: 0;
-}
-
-.graph-filter-button:hover,
-.graph-reset-button:hover {
-  background: var(--sidebar);
-  color: var(--ink);
-}
-
-.graph-filter-button[aria-pressed="true"] {
-  background: var(--selected);
-  color: var(--panel);
 }
 
 .graph-reset-button {
@@ -708,7 +834,18 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   background: var(--floating-control);
+  color: var(--muted);
+  cursor: pointer;
   padding: 7px 9px;
+  font-size: 10.5px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.graph-reset-button:hover {
+  background: var(--sidebar);
+  color: var(--ink);
 }
 
 .graph-control-status {
@@ -866,6 +1003,26 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   color: var(--selected);
 }
 
+.person-detail__standfirst {
+  margin-top: 11px;
+  border-left: 2px solid var(--line-strong);
+  padding-left: 11px;
+  color: var(--ink);
+}
+
+.person-detail__standfirst .detail-prose {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.person-detail__fact-link {
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .person-detail__facts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -889,27 +1046,36 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   line-height: 1.45;
 }
 
-.relevance-value {
+.relevance-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-weight: 650;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 620;
+  white-space: nowrap;
 }
 
-.relevance-value::before {
+.relevance-chip::before {
   width: 6px;
   height: 6px;
+  border: 1px solid var(--faint);
   border-radius: 50%;
-  background: var(--relevance-low);
+  background: transparent;
   content: "";
 }
 
-.relevance-value[data-relevance="high"]::before {
-  background: var(--relevance-high);
+.relevance-chip[data-relevance="medium"]::before {
+  background: var(--faint);
 }
 
-.relevance-value[data-relevance="medium"]::before {
-  background: var(--relevance-medium);
+.relevance-chip[data-relevance="high"] {
+  color: var(--ink);
+}
+
+.relevance-chip[data-relevance="high"]::before {
+  border-color: var(--ink);
+  background: var(--ink);
 }
 
 .person-detail__introducer {
@@ -952,7 +1118,7 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
 
 .person-detail__diagnostic .person-detail__fact-label,
 .person-detail__diagnostic .person-detail__fact-value {
-  color: var(--relevance-high);
+  color: var(--attention);
 }
 
 .person-detail__divider {
@@ -971,11 +1137,37 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
 }
 
 .detail-section__heading {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
   color: var(--ink);
   font-size: 11px;
   font-weight: 720;
   letter-spacing: 0.045em;
   text-transform: uppercase;
+}
+
+.detail-section__heading--quiet {
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: 0.09em;
+}
+
+.detail-section__count {
+  color: var(--faint);
+  font-weight: 620;
+  letter-spacing: 0.02em;
+}
+
+.person-detail__sections--recall {
+  gap: 20px;
+}
+
+.person-detail__sections--recall .detail-prose,
+.person-detail__sections--recall .detail-prose-list {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .conversation-prep {
@@ -988,21 +1180,45 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   gap: 8px;
 }
 
-.conversation-prep__next {
+.next-actions {
   display: grid;
-  gap: 7px;
+  gap: 12px;
+  margin-top: 18px;
   border: 1px solid var(--selected-border);
   border-radius: var(--radius-md);
   background: var(--selected-soft);
-  padding: 11px 12px;
+  padding: 12px 13px 13px;
 }
 
-.conversation-prep__subheading {
+.next-actions__heading {
   color: var(--selected);
   font-size: 11px;
   font-weight: 720;
-  letter-spacing: 0.035em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.next-actions__group {
+  display: grid;
+  gap: 5px;
+}
+
+.next-actions__subheading {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 680;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.next-actions .detail-prose,
+.next-actions .detail-prose-list {
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.next-actions .detail-prose:first-child {
+  margin-top: 0;
 }
 
 .conversation-prep__disclosure {
@@ -1099,6 +1315,11 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   display: grid;
   gap: 4px;
   padding-left: 18px;
+  list-style-type: disc;
+}
+
+ol.detail-prose-list {
+  list-style-type: decimal;
 }
 
 .detail-prose strong {
@@ -1112,6 +1333,94 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   padding: 1px 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.88em;
+}
+
+.timeline {
+  display: grid;
+  gap: 0;
+  margin: 2px 0 0;
+  padding: 0 0 0 13px;
+  border-left: 1px solid var(--line);
+  list-style: none;
+}
+
+.timeline__entry {
+  position: relative;
+}
+
+.timeline__entry::before {
+  position: absolute;
+  top: 11px;
+  left: -17px;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--panel);
+  content: "";
+}
+
+.timeline__entry:first-child::before {
+  border-color: var(--selected);
+  background: var(--selected);
+}
+
+.timeline__disclosure {
+  border-bottom: 1px solid var(--line);
+  padding: 5px 0 8px;
+}
+
+.timeline__entry:last-child .timeline__disclosure {
+  border-bottom: 0;
+}
+
+.timeline__summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style-position: outside;
+}
+
+.timeline__summary:hover .timeline__kind {
+  color: var(--selected);
+}
+
+.timeline__kind {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 660;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+
+.timeline__date {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--faint);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.timeline__elapsed {
+  color: var(--line-strong);
+}
+
+.timeline__body {
+  padding: 4px 0 2px;
+}
+
+.timeline__body .detail-prose:first-child,
+.timeline__body .detail-prose-heading:first-child {
+  margin-top: 4px;
+}
+
+.timeline__empty {
+  color: var(--faint);
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 .person-detail__latest-kind {
@@ -1151,7 +1460,19 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
 .strength-meter {
   display: inline-flex;
   align-items: center;
+  gap: 7px;
+}
+
+.strength-meter__steps {
+  display: inline-flex;
+  align-items: center;
   gap: 3px;
+}
+
+.strength-meter__value {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 620;
 }
 
 .strength-meter__step {
@@ -1293,8 +1614,63 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
 }
 
 .command-result__context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 8px;
   color: var(--muted);
   font-size: 10.5px;
+}
+
+.command-result__note {
+  color: var(--faint);
+  font-style: italic;
+}
+
+.command-group {
+  display: grid;
+  gap: 1px;
+}
+
+.command-group + .command-group {
+  margin-top: 6px;
+  border-top: 1px solid var(--line);
+  padding-top: 6px;
+}
+
+.command-group [cmdk-group-heading] {
+  padding: 6px 10px 4px;
+  color: var(--faint);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.command-result--action {
+  flex-direction: row;
+  align-items: center;
+  gap: 9px;
+}
+
+.command-result__icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--faint);
+}
+
+.command-result--action .command-result__name {
+  flex: 1 1 auto;
+  font-weight: 600;
+}
+
+.command-result__hint {
+  flex: 0 0 auto;
+  color: var(--faint);
+  font-size: 9.5px;
+  font-weight: 660;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }
 
 .command-match {
@@ -1302,6 +1678,67 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
   background: var(--command-match);
   color: inherit;
   padding: 0 1px;
+}
+
+.empty-vault {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  background: var(--canvas);
+  padding: 24px;
+}
+
+.empty-vault__panel {
+  width: min(520px, 100%);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  padding: 26px 26px 24px;
+}
+
+.empty-vault__eyebrow {
+  margin: 0;
+  color: var(--faint);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.empty-vault__heading {
+  margin: 10px 0 0;
+  color: var(--ink);
+  font-size: 21px;
+  font-weight: 720;
+  letter-spacing: -0.025em;
+}
+
+.empty-vault__intro {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.empty-vault__path {
+  margin: 12px 0 0;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--sidebar);
+  padding: 8px 10px;
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.empty-vault__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 18px;
 }
 
 .error-shell {
@@ -1314,7 +1751,7 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
 
 .error-ledger {
   width: min(600px, 100%);
-  border-top: 3px solid var(--relevance-high);
+  border-top: 3px solid var(--attention);
   border-bottom: 1px solid var(--line-strong);
   background: var(--panel);
   padding: 24px 0 22px;
@@ -1352,6 +1789,7 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
 
 .error-ledger__issues {
   display: grid;
+  list-style-type: disc;
   gap: 5px;
   margin: 16px 22px 0;
   padding-left: 18px;
@@ -1471,7 +1909,15 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
     padding-inline: 8px;
   }
 
-  .orbit-kbd {
+  .refresh-icon {
+  transition: transform var(--motion-fast) var(--ease-out);
+}
+
+.refresh-icon--pending {
+  transform: rotate(180deg);
+}
+
+.orbit-kbd {
     display: none;
   }
 

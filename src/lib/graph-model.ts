@@ -106,3 +106,27 @@ export function getConnectedIds(links: GraphLink[], selectedId: string): Set<str
 
   return connected;
 }
+
+/**
+ * The selected person's immediate neighbourhood: the self anchor, the person,
+ * and everyone one introduction hop away. Selection replaces the view rather
+ * than dimming it, so a twelve-spoke wheel becomes the few people that
+ * actually explain how this relationship came about.
+ */
+export function selectNeighbourhood(
+  model: GraphModel,
+  selfId: string,
+  selectedId: string,
+): GraphModel {
+  const connected = getConnectedIds(model.links, selectedId);
+  connected.add(selfId);
+
+  const nodes = model.nodes.filter((node) => connected.has(node.personId));
+  const links = model.links.filter((link) => {
+    const sourceId = endpointId(link.source);
+    const targetId = endpointId(link.target);
+    return connected.has(sourceId) && connected.has(targetId);
+  });
+
+  return { nodes, links };
+}

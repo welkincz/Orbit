@@ -38,7 +38,7 @@ describe("PersonDetail", () => {
   afterEach(cleanup);
 
   it("shows a progressive person narrative and local-file actions", () => {
-    render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    render(<PersonDetail currentDate="2026-08-29" person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Maya Patel" })).toBeVisible();
     expect(screen.getByText("Director · Platform Engineering")).toBeVisible();
@@ -48,9 +48,10 @@ describe("PersonDetail", () => {
     expect(within(screen.getByText("Last contact").parentElement!).getByText("August 18, 2026")).toBeVisible();
     expect(screen.getByText("2 interactions")).toBeVisible();
     expect(screen.getByRole("button", { name: "Elise Warren" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Why they matter" })).toBeVisible();
+    // "Why they matter" is now the standfirst under the name, not its own section.
+    expect(screen.queryByRole("heading", { name: "Why they matter" })).not.toBeInTheDocument();
     expect(screen.getByText("Maya gives candid platform leadership advice.")).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Latest interaction" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: /History/ })).toBeVisible();
     expect(screen.getByText("Coffee chat")).toBeVisible();
     expect(screen.getAllByText("Send the platform RFC article")).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Open Markdown" })).toHaveAttribute(
@@ -62,7 +63,7 @@ describe("PersonDetail", () => {
 
   it("links Open Markdown for a Windows source path", () => {
     const win = makePerson({ id: "win", name: "Win Person", sourcePath: "C:\\Users\\Charlie\\Orbit\\data\\people\\win.md" });
-    render(<PersonDetail person={win} people={[win]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    render(<PersonDetail currentDate="2026-08-29" person={win} people={[win]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
 
     expect(screen.getByRole("link", { name: "Open Markdown" })).toHaveAttribute(
       "href",
@@ -72,7 +73,7 @@ describe("PersonDetail", () => {
 
   it("keeps Copy path usable when the source path cannot open in VS Code", () => {
     const odd = makePerson({ id: "odd", name: "Odd Person", sourcePath: "data/people/odd.md", sourceRelativePath: "data/people/odd.md" });
-    render(<PersonDetail person={odd} people={[odd]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    render(<PersonDetail currentDate="2026-08-29" person={odd} people={[odd]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
 
     expect(screen.getByRole("heading", { name: "Odd Person" })).toBeVisible();
     expect(screen.queryByText("Open Markdown")).not.toBeInTheDocument();
@@ -93,17 +94,19 @@ describe("PersonDetail", () => {
       }],
     });
 
-    render(<PersonDetail person={stale} people={[stale]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    render(<PersonDetail currentDate="2026-08-29" person={stale} people={[stale]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
 
     expect(screen.getByText(/older than interaction 2026-06-01/)).toBeVisible();
   });
 
   it("puts actionable Conversation Prep before interaction history", async () => {
     const user = userEvent.setup();
-    render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    render(<PersonDetail currentDate="2026-08-29" person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
 
     const headings = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    expect(headings.indexOf("Next conversation")).toBeLessThan(headings.indexOf("Latest interaction"));
+    expect(headings.indexOf("Next conversation")).toBeLessThan(
+      headings.findIndex((heading) => heading?.startsWith("History")),
+    );
     expect(screen.getByText("Ask how the ownership discussion landed")).toBeVisible();
     expect(screen.getByText("Maya's team is clarifying platform ownership.")).toBeVisible();
     await user.click(screen.getByText("What they care about"));
@@ -118,7 +121,7 @@ describe("PersonDetail", () => {
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     const empty = makePerson({ id: "empty", name: "Empty Prep" });
 
-    render(<PersonDetail person={empty} people={[empty]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    render(<PersonDetail currentDate="2026-08-29" person={empty} people={[empty]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
     expect(screen.queryByRole("heading", { name: "Their world" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Copy Conversation Prep template" }));
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining("## Conversation Prep"));
@@ -131,7 +134,7 @@ describe("PersonDetail", () => {
     const onClose = vi.fn();
     const onSelectPerson = vi.fn();
 
-    render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={onSelectPerson} onClose={onClose} />);
+    render(<PersonDetail currentDate="2026-08-29" person={maya} people={[maya, introducer]} onSelectPerson={onSelectPerson} onClose={onClose} />);
 
     await user.click(screen.getByRole("button", { name: "Elise Warren" }));
     expect(onSelectPerson).toHaveBeenCalledWith("elise");
@@ -144,6 +147,7 @@ describe("PersonDetail", () => {
     const onToggleExpanded = vi.fn();
     const { rerender } = render(
       <PersonDetail
+      currentDate="2026-08-29"
         expanded={false}
         person={maya}
         people={[maya, introducer]}
@@ -158,6 +162,7 @@ describe("PersonDetail", () => {
 
     rerender(
       <PersonDetail
+      currentDate="2026-08-29"
         expanded
         person={maya}
         people={[maya, introducer]}
@@ -175,6 +180,7 @@ describe("PersonDetail", () => {
     const onResetWidth = vi.fn();
     render(
       <PersonDetail
+      currentDate="2026-08-29"
         detailWidth={480}
         person={maya}
         people={[maya, introducer]}
@@ -214,7 +220,7 @@ describe("PersonDetail", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
 
-    render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    render(<PersonDetail currentDate="2026-08-29" person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Copy path" }));
     expect(writeText).toHaveBeenCalledWith("/Users/Charlie/Orbit/data/people/maya.md");
@@ -226,12 +232,12 @@ describe("PersonDetail", () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     const alex = makePerson({ id: "alex", name: "Alex Rivera", sourcePath: "/Users/Charlie/Orbit/data/people/alex.md" });
-    const { rerender } = render(<PersonDetail person={maya} people={[maya, introducer, alex]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    const { rerender } = render(<PersonDetail currentDate="2026-08-29" person={maya} people={[maya, introducer, alex]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Copy path" }));
     expect(screen.getByText("Path copied.")).toBeVisible();
 
-    rerender(<PersonDetail person={alex} people={[maya, introducer, alex]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    rerender(<PersonDetail currentDate="2026-08-29" person={alex} people={[maya, introducer, alex]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
     expect(screen.queryByText("Path copied.")).not.toBeInTheDocument();
   });
 
@@ -240,7 +246,7 @@ describe("PersonDetail", () => {
     const writeText = vi.fn().mockRejectedValue(new Error("Denied"));
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
 
-    render(<PersonDetail person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
+    render(<PersonDetail currentDate="2026-08-29" person={maya} people={[maya, introducer]} onSelectPerson={vi.fn()} onClose={vi.fn()} />);
 
     await user.click(screen.getByRole("button", { name: "Copy path" }));
     expect(screen.getByText("Couldn’t copy path.")).toBeVisible();

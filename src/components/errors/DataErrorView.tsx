@@ -27,7 +27,7 @@ export function DataErrorView({ error }: DataErrorViewProps) {
               <p className="error-ledger__source">{group.sourceRelativePath}</p>
             ) : null}
 
-            <ul className="error-ledger__issues list-disc">
+            <ul className="error-ledger__issues">
               {group.issues.map((issue) => <li key={issue}>{issue}</li>)}
             </ul>
           </div>
