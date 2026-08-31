@@ -9,3 +9,18 @@ coverage/
 !.env.example
 .DS_Store
 tsconfig.tsbuildinfo
+
+# Keep the fictional starter records versioned. New personal records are local-only.
+data/people/*.md
+!data/people/charlie.md
+!data/people/elise-warren.md
+!data/people/imani-cole.md
+!data/people/jasper-kim.md
+!data/people/lena-ortiz.md
+!data/people/marcus-vale.md
+!data/people/maya-patel.md
+!data/people/nia-okafor.md
+!data/people/owen-mercer.md
+!data/people/priya-desai.md
+!data/people/samir-rahman.md
+!data/people/theo-brooks.md
