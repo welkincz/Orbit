@@ -191,13 +191,11 @@ export function RelationshipSidebar({
                         tabIndex={currentRowIndex === activeIndex ? 0 : -1}
                         type="button"
                       >
-                        <span className="relationship-row__identity">
-                          <span className="relationship-row__name">{row.person.name}</span>
-                          {professionalContext && (
-                            <span className="relationship-row__context">{professionalContext}</span>
-                          )}
-                        </span>
+                        <span className="relationship-row__name" title={row.person.name}>{row.person.name}</span>
                         <span className="relationship-row__meta">{row.secondary}</span>
+                        {professionalContext && (
+                          <span className="relationship-row__context" title={professionalContext}>{professionalContext}</span>
+                        )}
                       </button>
                     );
                   })

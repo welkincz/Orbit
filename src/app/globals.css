@@ -436,12 +436,30 @@ html[data-theme="dark"] .theme-toggle__orb::before {
   opacity: 0.52;
 }
 
-.refresh-icon {
-  transition: transform var(--motion-fast) var(--ease-out);
+.refresh-label {
+  display: grid;
+  text-align: left;
+}
+
+.refresh-label > span {
+  grid-area: 1 / 1;
+}
+
+.refresh-label__measure {
+  visibility: hidden;
+}
+
+.refresh-control:disabled {
+  cursor: progress;
+  opacity: 0.75;
 }
 
 .refresh-icon--pending {
-  transform: rotate(180deg);
+  animation: refresh-spin 900ms linear infinite;
+}
+
+@keyframes refresh-spin {
+  to { transform: rotate(360deg); }
 }
 
 .orbit-kbd {
@@ -632,7 +650,7 @@ html[data-theme="dark"] .theme-toggle__orb::before {
   width: 100%;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 10px;
+  gap: 3px 10px;
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -642,6 +660,7 @@ html[data-theme="dark"] .theme-toggle__orb::before {
   text-align: left;
   transition:
     background-color var(--motion-fast) var(--ease-out),
+    box-shadow var(--motion-fast) var(--ease-out),
     color var(--motion-fast) var(--ease-out),
     opacity var(--motion-fast) var(--ease-out);
 }
@@ -667,7 +686,8 @@ html[data-theme="dark"] .theme-toggle__orb::before {
 }
 
 .relationship-row[aria-current="true"] {
-  background: var(--panel);
+  background: var(--selected-soft);
+  box-shadow: inset 0 0 0 1px var(--selected-border);
   color: var(--selected);
 }
 
@@ -675,12 +695,9 @@ html[data-theme="dark"] .theme-toggle__orb::before {
   background: var(--selected);
 }
 
-.relationship-row__identity {
-  min-width: 0;
-}
-
 .relationship-row__name {
   display: block;
+  min-width: 0;
   overflow: hidden;
   color: currentColor;
   font-size: 12.5px;
@@ -692,8 +709,9 @@ html[data-theme="dark"] .theme-toggle__orb::before {
 
 .relationship-row__context {
   display: block;
+  grid-column: 1 / -1;
+  min-width: 0;
   overflow: hidden;
-  margin-top: 2px;
   color: var(--muted);
   font-size: 10.5px;
   line-height: 1.35;
@@ -929,24 +947,43 @@ html[data-theme-transition] .orbit-graph-canvas canvas {
 }
 
 .person-detail {
+  --detail-padding-x: 21px;
+  --detail-padding-y: 19px;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
-  overflow-y: auto;
+  overflow: hidden;
   border-left: 1px solid var(--line-strong);
   background: var(--panel);
-  scrollbar-color: var(--line-strong) transparent;
-  scrollbar-width: thin;
 }
 
 .person-detail__inner {
-  padding: 19px 21px 28px;
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-width: thin;
+  scroll-padding-top: 16px;
+  padding: var(--detail-padding-y) var(--detail-padding-x) 28px;
+  animation: detail-content-enter 160ms var(--ease-out);
+}
+
+/* The keyed content changes with the person; the panel behind it stays opaque. */
+@keyframes detail-content-enter {
+  from { opacity: 0.45; }
+  to { opacity: 1; }
 }
 
 .person-detail__header {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  padding: var(--detail-padding-y) var(--detail-padding-x) 14px;
 }
 
 .person-detail__header-actions {
@@ -1909,20 +1946,18 @@ ol.detail-prose-list {
     padding-inline: 8px;
   }
 
-  .refresh-icon {
-  transition: transform var(--motion-fast) var(--ease-out);
-}
-
-.refresh-icon--pending {
-  transform: rotate(180deg);
-}
-
-.orbit-kbd {
+  .refresh-label,
+  .orbit-kbd {
     display: none;
   }
 
+  .person-detail {
+    --detail-padding-x: 18px;
+    --detail-padding-y: 17px;
+  }
+
   .person-detail__inner {
-    padding: 17px 18px 24px;
+    padding-bottom: 24px;
   }
 
   .orbit-detail-motion {
@@ -1941,6 +1976,11 @@ ol.detail-prose-list {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .person-detail__inner,
+  .refresh-icon--pending {
+    animation: none;
+  }
+
   *,
   *::before,
   *::after {

@@ -118,8 +118,6 @@ function PersonDetailContent({
       tabIndex={0}
     />
     <aside aria-label={`${person.name} details`} className="person-detail">
-      <div className="person-detail__inner">
-
       {/* Tier 1 — who this is */}
       <div className="person-detail__header">
         <div className="min-w-0">
@@ -149,6 +147,7 @@ function PersonDetailContent({
         </div>
       </div>
 
+      <div className="person-detail__inner">
       {whyTheyMatter && (
         <div className="person-detail__standfirst">
           <MarkdownContent markdown={whyTheyMatter} />
