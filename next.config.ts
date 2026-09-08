@@ -1,12 +1,16 @@
 import type { NextConfig } from "next";
 
+// `ORBIT_STATIC_EXPORT=1` emits ./out for the Cloudflare deploy. It is opt-in
+// because `output: "export"` is incompatible with `next start`, and leaving it
+// always-on would quietly break `npm run start`.
+//
+// `dynamic = "force-static"` in app/page.tsx is unconditional: a production
+// build should render the vault once, not per request. `next dev` ignores it
+// and still re-reads data/people on every request.
 const nextConfig: NextConfig = {
-  // The hosted copy is a static snapshot of whatever is committed to
-  // data/people at build time. There is no vault behind a CDN to re-read,
-  // so `next build` prerenders the page instead of rendering per request.
-  // `next dev` is unaffected and still re-reads the directory every request.
-  output: "export",
-  images: { unoptimized: true },
+  ...(process.env.ORBIT_STATIC_EXPORT === "1"
+    ? { output: "export" as const, images: { unoptimized: true } }
+    : {}),
 };
 
 export default nextConfig;
