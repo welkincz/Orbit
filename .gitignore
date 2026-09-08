@@ -24,3 +24,6 @@ data/people/*.md
 !data/people/priya-desai.md
 !data/people/samir-rahman.md
 !data/people/theo-brooks.md
+
+# Cloudflare
+.wrangler/

@@ -9,7 +9,7 @@ import { loadPeopleFromDirectory } from "@/lib/markdown";
 import { EmptyPeopleDirectoryError, toPeopleDataError } from "@/lib/people";
 import type { PeopleDataset } from "@/types/person";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 function peopleDirectory(): string {
   return resolve(process.cwd(), "data/people");

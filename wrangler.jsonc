@@ -1,0 +1,18 @@
+{
+  // Orbit — deployed as a static export of the committed seed vault.
+  //
+  // Deploys run on Cloudflare Workers Builds, NOT from a laptop. That is
+  // deliberate: the build input is a fresh clone of this repo, so private
+  // records in a local data/people/ can never reach the public site.
+  // .gitignore keeps them out of git; that is the only gate that matters here.
+  "name": "orbit",
+  "compatibility_date": "2026-09-08",
+
+  "assets": {
+    "directory": "./out"
+  },
+
+  "routes": [
+    { "pattern": "orbit.charliebuild.com", "custom_domain": true }
+  ]
+}
