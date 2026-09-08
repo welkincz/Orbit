@@ -1,10 +1,13 @@
 {
   // Orbit — deployed as a static export of the committed seed vault.
   //
-  // Deploys run on Cloudflare Workers Builds, NOT from a laptop. That is
-  // deliberate: the build input is a fresh clone of this repo, so private
-  // records in a local data/people/ can never reach the public site.
-  // .gitignore keeps them out of git; that is the only gate that matters here.
+  // Deploy with `npm run deploy`, never with a bare `wrangler deploy`.
+  // That script builds inside a throwaway clone of HEAD, so only committed
+  // files are ever compiled into ./out. Real records in a local
+  // data/people/ are gitignored and therefore cannot reach the public site.
+  //
+  // A bare `wrangler deploy` would upload whatever ./out happens to hold,
+  // including a build made from the working tree. Don't.
   "name": "orbit",
   "compatibility_date": "2026-09-08",
 
