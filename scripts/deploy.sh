@@ -33,5 +33,6 @@ ls data/people | sed 's/^/  /'
 echo
 
 npm ci --silent
-ORBIT_STATIC_EXPORT=1 npm run build
+# A private vault path exported in the shell must not reach the public build.
+env -u ORBIT_DATA_DIR ORBIT_STATIC_EXPORT=1 npm run build
 wrangler deploy

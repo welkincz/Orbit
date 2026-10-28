@@ -210,7 +210,17 @@ Keep these notes respectful and useful. Separate known facts from personal obser
 Orbit has no account, hosted database, analytics service, cloud sync, email ingestion, or calendar ingestion. The application reads the repository's local Markdown files and stores only dragged map positions in the browser's local storage.
 
 > [!IMPORTANT]
-> Orbit itself does not upload your people records. However, those records live inside a Git repository, so Git treats edits like any other repository change. Do not commit or push real relationship data unless you intentionally want it stored on the configured remote. A private GitHub repository is still remote storage.
+> Orbit itself does not upload your people records, but anything inside this repository can be committed and pushed. A private GitHub repository is still remote storage. Keep real records in a private vault outside the repository instead.
+
+### Keep real records in a private vault
+
+Point Orbit at a directory outside the repository by creating a git-ignored `.env.local` (see `.env.example`):
+
+```bash
+ORBIT_DATA_DIR=~/OrbitVault/people
+```
+
+`npm run dev` then reads that vault, while `data/people/` keeps the fictional seed records used by tests and the public demo. Make the vault its own Git repository with no remote if you want history. A static export (`ORBIT_STATIC_EXPORT=1`) refuses to build while `ORBIT_DATA_DIR` is set, and `npm run deploy` clears it, so a vault cannot be compiled into the public site.
 
 Both development and production commands bind to the IPv4 loopback address `127.0.0.1`. Do not change the hostname to `0.0.0.0`, a LAN address, or another network interface unless you intentionally want to expose the app—and its private relationship data—to other devices.
 

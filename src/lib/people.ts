@@ -94,7 +94,7 @@ export function aggregatePeopleDataErrors(errors: PeopleDataError[]): PeopleData
 export function toPeopleDataError(error: unknown): PeopleDataError {
   if (error instanceof PeopleDataError) return error;
   return new PeopleDataError("Unable to read people data", {
-    issues: ["Check that data/people exists and contains readable Markdown files."],
+    issues: ["Check that the people directory (data/people, or ORBIT_DATA_DIR when set) exists and contains readable Markdown files."],
   });
 }
 

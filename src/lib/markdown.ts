@@ -296,7 +296,9 @@ export async function loadPeopleFromDirectory(
 
   const results = await Promise.allSettled(entries.map(async (entry) => {
     const absolutePath = resolve(directory, entry.name);
-    const relativePath = relative(process.cwd(), absolutePath);
+    // A private vault lives outside the repository; show its real path rather than ../../…
+    const cwdRelativePath = relative(process.cwd(), absolutePath);
+    const relativePath = cwdRelativePath.startsWith("..") ? absolutePath : cwdRelativePath;
     let source: string;
     try {
       source = await readFile(absolutePath, "utf8");
