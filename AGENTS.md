@@ -16,10 +16,16 @@ read-only viewer; agents maintain its Markdown source of truth.
 
 ### Storage and privacy
 
-- Store every person as one flat file at `data/people/<id>.md`. Do not create
+- Real records live in a private vault outside this public repository, in the
+  directory named by `ORBIT_DATA_DIR` (set in the git-ignored `.env.local`,
+  normally `~/OrbitVault/people`). Read `.env.local` to find it. If it is not
+  set, ask the user where real records belong; never put them in `data/people/`.
+- Store every person as one flat file at `<vault>/<id>.md`. Do not create
   company, team, business-line, or group subdirectories.
-- The existing fictional starter files are the only person records tracked by
-  Git. New `data/people/*.md` files are intentionally ignored and local-only.
+- `data/people/` holds only the fictional starter records used by tests and the
+  public demo. Do not add real people there.
+- The vault is its own local Git repository with no remote. Never add a remote
+  to it, push it, or copy its records into this repository.
 - Never replace a fictional starter record with a real person. Create a new
   file with a unique ID instead.
 - Never force-add, stage, commit, push, or otherwise upload an ignored person
@@ -39,9 +45,9 @@ read-only viewer; agents maintain its Markdown source of truth.
 4. Ask for the minimum missing information needed for a valid record. If a
    relative date such as "today" is clear, use the current local calendar date;
    otherwise ask for the date.
-5. After editing, validate the people directory with
-   `npm test -- tests/seed-data.test.ts`. For a newly created record, also use
-   `git check-ignore -v <path>` and confirm that Git ignores it.
+5. After editing, validate the vault with
+   `ORBIT_DATA_DIR=<vault> npx vitest run tests/vault-data.test.ts`, then
+   commit the change inside the vault repository only.
 6. Report which record changed, what was added or updated, any information that
    remains unknown, and the validation result.
 

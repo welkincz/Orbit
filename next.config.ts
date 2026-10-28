@@ -1,4 +1,9 @@
 import type { NextConfig } from "next";
+import { assertStaticExportUsesSeedData } from "./src/lib/data-directory";
+
+// The static export is the public demo. Fail the build rather than compile a
+// private vault (ORBIT_DATA_DIR, often set in .env.local) into ./out.
+assertStaticExportUsesSeedData();
 
 // `ORBIT_STATIC_EXPORT=1` emits ./out for the Cloudflare deploy. It is opt-in
 // because `output: "export"` is incompatible with `next start`, and leaving it
